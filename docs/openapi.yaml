@@ -1,0 +1,2418 @@
+openapi: 3.0.3
+info:
+  title: iDME 工业 MiniApp API
+  description: |
+    华为 iDME 数据建模引擎 - 工业 MiniApp 接口文档。
+    - 管理界面: http://99.suyiiyii.top:8003/rdm_a1b52ff379ee46ed8928d7f2ceb908f6_app/services/index.html
+    - 健康检查: http://99.suyiiyii.top:8003/rdm_a1b52ff379ee46ed8928d7f2ceb908f6_app/services/v1/health
+    认证: Basic Auth 用户名 sysadmin / 密码见项目说明。
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://99.suyiiyii.top:8003/rdm_a1b52ff379ee46ed8928d7f2ceb908f6_app/services
+    description: iDME SDK 服务
+
+security:
+  - basicAuth: []
+
+tags:
+  - name: 设备管理
+    description: Equipment 设备
+  - name: 物料管理
+    description: Part 物料（支持版本）
+  - name: 工序管理
+    description: WorkingProcedure 工序
+  - name: 工艺路线
+    description: WorkingPlan 工艺路线
+  - name: BOM
+    description: BOMItem BOM 组成
+  - name: 工艺工序关联
+    description: PlanProcedureLink
+  - name: 工序设备关联
+    description: ProcedureEquipmentLink
+  - name: 工序物料关联
+    description: ProcedurePartLink
+  - name: 往来单位
+    description: BusinessPartner
+  - name: 联系人
+    description: PartnerContact
+  - name: 部门
+    description: Department
+  - name: 员工
+    description: Employee
+  - name: 位置
+    description: Location
+  - name: 设备机型
+    description: EquipmentModel
+  - name: 设备备品备件
+    description: EquipmentSparePartLink
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: 用户名 sysadmin，密码见项目文档
+
+  parameters:
+    pageNum:
+      name: pageNum
+      in: query
+      description: 页码，从 1 开始
+      schema:
+        type: integer
+        default: 1
+    pageSize:
+      name: pageSize
+      in: query
+      description: 每页大小
+      schema:
+        type: integer
+        default: 20
+    idPath:
+      name: id
+      in: path
+      required: true
+      description: 主键 ID
+      schema:
+        type: string
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        result:
+          type: string
+          example: SUCCESS
+        data: {}
+        errors:
+          type: array
+          items:
+            type: string
+      description: 统一响应包装
+
+    PageResult:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: 总条数
+        pageNum:
+          type: integer
+        pageSize:
+          type: integer
+        records:
+          type: array
+          items: {}
+
+    # 引用对象，用于关联字段的嵌套展示
+    PartnerRef:
+      type: object
+      description: 往来单位引用
+      properties:
+        id: { type: string }
+        partnerName: { type: string }
+
+    PartRef:
+      type: object
+      description: 物料引用（含名称）
+      properties:
+        id: { type: string }
+        partName: { type: string }
+
+    PartRefWithNumber:
+      type: object
+      description: 物料引用（含编号、名称）
+      properties:
+        id: { type: string }
+        partNumber: { type: string }
+        partName: { type: string }
+
+    ProcedureRef:
+      type: object
+      description: 工序引用
+      properties:
+        id: { type: string }
+        procedureName: { type: string }
+
+    ProcedureRefWithCode:
+      type: object
+      description: 工序引用（含编码）
+      properties:
+        id: { type: string }
+        procedureCode: { type: string }
+        procedureName: { type: string }
+
+    PlanRef:
+      type: object
+      description: 工艺路线引用
+      properties:
+        id: { type: string }
+        planName: { type: string }
+
+    PlanProcedureItem:
+      type: object
+      description: 工艺路线工序项
+      properties:
+        sequenceNo: { type: integer, description: 工序序号 }
+        procedure: { $ref: '#/components/schemas/ProcedureRefWithCode' }
+        standardDurationMin: { type: number, description: 标准工时(分钟) }
+        requirement: { type: string, description: 工序要求 }
+
+    BOMTreeNode:
+      type: object
+      description: BOM 树节点
+      properties:
+        part: { $ref: '#/components/schemas/PartRefWithNumber' }
+        findNumber: { type: integer }
+        quantity: { type: number }
+        uom: { type: string }
+        children:
+          type: array
+          items: { $ref: '#/components/schemas/BOMTreeNode' }
+
+    EquipmentStatistics:
+      type: object
+      description: 设备按状态统计，key 为状态名，value 为数量
+      additionalProperties:
+        type: integer
+
+    PartVersionItem:
+      type: object
+      description: 物料版本项
+      properties:
+        id: { type: string }
+        businessVersion: { type: string }
+        versionNumber: { type: string }
+        createTime: { type: string, format: date-time }
+
+    EquipmentDetail:
+      type: object
+      description: 设备详情（含关联对象）
+      properties:
+        id: { type: string }
+        equipmentCode: { type: string }
+        equipmentName: { type: string }
+        manufacturerName:
+          oneOf:
+            - { type: string }
+            - { $ref: '#/components/schemas/PartnerRef' }
+        brand: { type: string }
+        modelSpec: { type: string }
+        status: { type: string, enum: [运行, 待机, 维修, 停机, 报废] }
+        techParams: { type: object, additionalProperties: true }
+        createTime: { type: string, format: date-time }
+        lastModifiedTime: { type: string, format: date-time }
+
+    EquipmentListItem:
+      type: object
+      description: 设备列表项
+      properties:
+        id: { type: string }
+        equipmentCode: { type: string }
+        equipmentName: { type: string }
+        status: { type: string }
+        locationText: { type: string }
+
+    PartListItem:
+      type: object
+      description: 物料列表项
+      properties:
+        id: { type: string }
+        partNumber: { type: string }
+        partName: { type: string }
+        businessVersion: { type: string }
+        stockQty: { type: number }
+        unit: { type: string }
+
+    WorkingPlanDetail:
+      type: object
+      description: 工艺路线详情（含工序、产品物料）
+      properties:
+        id: { type: string }
+        planCode: { type: string }
+        planName: { type: string }
+        businessVersion: { type: string }
+        productPart: { $ref: '#/components/schemas/PartRef' }
+        description: { type: string }
+        procedures:
+          type: array
+          items: { $ref: '#/components/schemas/PlanProcedureItem' }
+        status: { type: string, enum: [Draft, Released, Obsolete] }
+
+    BOMItemDetail:
+      type: object
+      description: BOM 项详情（含父件、子件引用）
+      properties:
+        id: { type: string }
+        parentPart: { $ref: '#/components/schemas/PartRef' }
+        childPart: { $ref: '#/components/schemas/PartRef' }
+        quantity: { type: number }
+        uom: { type: string }
+        findNumber: { type: integer }
+
+    BOMTreeRoot:
+      type: object
+      description: BOM 树根节点
+      properties:
+        part: { $ref: '#/components/schemas/PartRefWithNumber' }
+        children:
+          type: array
+          items: { $ref: '#/components/schemas/BOMTreeNode' }
+
+    PartnerContact:
+      type: object
+      properties:
+        id: { type: string }
+        contactName: { type: string }
+        mobile: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        role: { type: string }
+        remarks: { type: string }
+
+    EquipmentSparePartLinkItem:
+      type: object
+      description: 设备备品备件项
+      properties:
+        id: { type: string }
+        sparePart: { $ref: '#/components/schemas/PartRefWithNumber' }
+        quantity: { type: integer }
+        unit: { type: string }
+        isCritical: { type: boolean }
+        replacementCycleDays: { type: integer }
+
+    EquipmentModel:
+      type: object
+      properties:
+        id: { type: string }
+        modelCode: { type: string }
+        modelName: { type: string }
+        manufacturer: { oneOf: [{ type: string }, { $ref: '#/components/schemas/PartnerRef' }] }
+        brand: { type: string }
+        modelSpec: { type: string }
+        category: { type: string }
+        defaultTechParams: { type: object }
+        remarks: { type: string }
+
+    DepartmentTreeNode:
+      type: object
+      properties:
+        id: { type: string }
+        deptCode: { type: string }
+        deptName: { type: string }
+        children:
+          type: array
+          items: { $ref: '#/components/schemas/DepartmentTreeNode' }
+
+    LocationTreeNode:
+      type: object
+      properties:
+        id: { type: string }
+        locationCode: { type: string }
+        locationName: { type: string }
+        locationType: { type: string }
+        children:
+          type: array
+          items: { $ref: '#/components/schemas/LocationTreeNode' }
+
+    Equipment:
+      type: object
+      properties:
+        id: { type: string }
+        equipmentCode: { type: string, description: 设备编码 }
+        equipmentName: { type: string, description: 设备名称 }
+        manufacturerName: { type: string }
+        brand: { type: string }
+        modelSpec: { type: string, description: 规格型号 }
+        supplierName: { type: string }
+        productionDate: { type: string, format: date }
+        serviceLifeYears: { type: integer }
+        depreciationMethod: { type: string, enum: [直线法, 双倍余额递减, 年数总和, 不折旧] }
+        locationText: { type: string }
+        locationRef: { type: string }
+        status: { type: string, enum: [运行, 待机, 维修, 停机, 报废] }
+        serialNumber: { type: string }
+        category: { type: string }
+        techParams: { type: object, description: 技术参数 JSON }
+        remarks: { type: string }
+        createTime: { type: string, format: date-time }
+        lastModifiedTime: { type: string, format: date-time }
+
+    EquipmentCreate:
+      type: object
+      required: [equipmentCode, equipmentName]
+      properties:
+        equipmentCode: { type: string }
+        equipmentName: { type: string }
+        manufacturerName: { type: string }
+        brand: { type: string }
+        modelSpec: { type: string }
+        supplierName: { type: string }
+        productionDate: { type: string, format: date }
+        serviceLifeYears: { type: integer }
+        depreciationMethod: { type: string }
+        locationText: { type: string }
+        status: { type: string }
+        serialNumber: { type: string }
+        category: { type: string }
+        techParams: { type: object }
+        remarks: { type: string }
+
+    Part:
+      type: object
+      properties:
+        id: { type: string }
+        masterId: { type: string }
+        partNumber: { type: string }
+        partName: { type: string }
+        modelSpec: { type: string }
+        stockQty: { type: number }
+        unit: { type: string }
+        supplierName: { type: string }
+        category: { type: string }
+        businessVersion: { type: string }
+        versionNumber: { type: string }
+        description: { type: string }
+        drawingUrl: { type: string }
+        extra: { type: object }
+        createTime: { type: string, format: date-time }
+        lastModifiedTime: { type: string, format: date-time }
+
+    PartCreate:
+      type: object
+      properties:
+        partNumber: { type: string }
+        partName: { type: string }
+        modelSpec: { type: string }
+        stockQty: { type: number }
+        unit: { type: string }
+        supplierName: { type: string }
+        category: { type: string }
+        businessVersion: { type: string }
+        description: { type: string }
+        drawingUrl: { type: string }
+        extra: { type: object }
+
+    WorkingProcedure:
+      type: object
+      properties:
+        id: { type: string }
+        procedureCode: { type: string }
+        procedureName: { type: string }
+        steps: { type: string }
+        mainProductionEquipment: { type: string }
+        mainInspectionEquipment: { type: string }
+        operatorUser: { type: string }
+        operatorRef: { type: string }
+        startTime: { type: string, format: date-time }
+        endTime: { type: string, format: date-time }
+        status: { type: string, enum: [未开始, 进行中, 已完成, 暂停] }
+        remarks: { type: string }
+
+    WorkingProcedureCreate:
+      type: object
+      required: [procedureCode, procedureName]
+      properties:
+        procedureCode: { type: string }
+        procedureName: { type: string }
+        steps: { type: string }
+        mainProductionEquipment: { type: string }
+        mainInspectionEquipment: { type: string }
+        operatorUser: { type: string }
+        operatorRef: { type: string }
+        startTime: { type: string, format: date-time }
+        endTime: { type: string, format: date-time }
+        status: { type: string }
+        remarks: { type: string }
+
+    WorkingPlan:
+      type: object
+      properties:
+        id: { type: string }
+        masterId: { type: string }
+        planCode: { type: string }
+        planName: { type: string }
+        businessVersion: { type: string }
+        versionNumber: { type: string }
+        productPart: { type: object }
+        description: { type: string }
+        operatorUser: { type: string }
+        operatorRef: { type: string }
+        operateTime: { type: string, format: date-time }
+        equipmentUsage: { type: object }
+        status: { type: string, enum: [Draft, Released, Obsolete] }
+        remarks: { type: string }
+        procedures: { type: array, items: {} }
+
+    WorkingPlanCreate:
+      type: object
+      required: [planCode, planName]
+      properties:
+        planCode: { type: string }
+        planName: { type: string }
+        businessVersion: { type: string }
+        productPart: { type: string }
+        description: { type: string }
+        operatorUser: { type: string }
+        operatorRef: { type: string }
+        operateTime: { type: string, format: date-time }
+        equipmentUsage: { type: object }
+        status: { type: string }
+        remarks: { type: string }
+
+    BOMItem:
+      type: object
+      properties:
+        id: { type: string }
+        parentPart: { type: object }
+        childPart: { type: object }
+        quantity: { type: number }
+        uom: { type: string }
+        findNumber: { type: integer }
+        effectiveFrom: { type: string, format: date }
+        effectiveTo: { type: string, format: date }
+        remarks: { type: string }
+
+    BOMItemCreate:
+      type: object
+      required: [parentPart, childPart, quantity]
+      properties:
+        parentPart: { type: string }
+        childPart: { type: string }
+        quantity: { type: number }
+        uom: { type: string }
+        findNumber: { type: integer }
+        effectiveFrom: { type: string, format: date }
+        effectiveTo: { type: string, format: date }
+        remarks: { type: string }
+
+    PlanProcedureLinkCreate:
+      type: object
+      required: [plan, procedure, sequenceNo]
+      properties:
+        plan: { type: string }
+        procedure: { type: string }
+        sequenceNo: { type: integer }
+        standardDurationMin: { type: number }
+        requirement: { type: string }
+
+    PlanProcedureLinkBatch:
+      type: object
+      required: [planId, procedures]
+      properties:
+        planId: { type: string }
+        procedures:
+          type: array
+          items:
+            type: object
+            properties:
+              procedureId: { type: string }
+              sequenceNo: { type: integer }
+              standardDurationMin: { type: number }
+              requirement: { type: string }
+
+    ProcedureEquipmentLinkCreate:
+      type: object
+      required: [procedure, equipment1]
+      properties:
+        procedure: { type: string }
+        equipment1: { type: string }
+        role: { type: string, enum: [生产, 检测, 辅助] }
+        plannedStart: { type: string, format: date-time }
+        plannedEnd: { type: string, format: date-time }
+        actualStart: { type: string, format: date-time }
+        actualEnd: { type: string, format: date-time }
+        remarks: { type: string }
+
+    ProcedurePartLinkCreate:
+      type: object
+      required: [procedure, part1]
+      properties:
+        procedure: { type: string }
+        part1: { type: string }
+        role: { type: string, enum: [Input, Output, Consumable, Tooling, Fixture] }
+        quantity: { type: number }
+        uom: { type: string }
+        isMandatory: { type: boolean }
+        remarks: { type: string }
+
+    BusinessPartner:
+      type: object
+      properties:
+        id: { type: string }
+        partnerCode: { type: string }
+        partnerName: { type: string }
+        partnerType: { type: string, enum: [Manufacturer, Supplier, ServiceProvider, Customer] }
+        phone: { type: string }
+        email: { type: string }
+        website: { type: string }
+        addressText: { type: string }
+        extra: { type: object }
+
+    BusinessPartnerCreate:
+      type: object
+      required: [partnerCode, partnerName, partnerType]
+      properties:
+        partnerCode: { type: string }
+        partnerName: { type: string }
+        partnerType: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        website: { type: string }
+        addressText: { type: string }
+        extra: { type: object }
+
+    PartnerContactCreate:
+      type: object
+      required: [partner, contactName]
+      properties:
+        partner: { type: string }
+        contactName: { type: string }
+        mobile: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        role: { type: string }
+        remarks: { type: string }
+
+    Department:
+      type: object
+      properties:
+        id: { type: string }
+        deptCode: { type: string }
+        deptName: { type: string }
+        parentDept: { type: string }
+        manager: { type: string }
+        remarks: { type: string }
+        children: { type: array, items: { $ref: '#/components/schemas/Department' } }
+
+    DepartmentCreate:
+      type: object
+      required: [deptCode, deptName]
+      properties:
+        deptCode: { type: string }
+        deptName: { type: string }
+        parentDept: { type: string }
+        manager: { type: string }
+        remarks: { type: string }
+
+    Employee:
+      type: object
+      properties:
+        id: { type: string }
+        employeeNo: { type: string }
+        employeeName: { type: string }
+        userRef: { type: string }
+        jobTitle: { type: string }
+        dept: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        status: { type: string, enum: [在职, 离职, 外协] }
+        hireDate: { type: string, format: date }
+        extra: { type: object }
+
+    EmployeeCreate:
+      type: object
+      required: [employeeNo, employeeName]
+      properties:
+        employeeNo: { type: string }
+        employeeName: { type: string }
+        userRef: { type: string }
+        jobTitle: { type: string }
+        dept: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        status: { type: string }
+        hireDate: { type: string, format: date }
+        extra: { type: object }
+
+    Location:
+      type: object
+      properties:
+        id: { type: string }
+        locationCode: { type: string }
+        locationName: { type: string }
+        locationType: { type: string, enum: [Plant, Workshop, Line, Station, Warehouse] }
+        parentLocation: { type: string }
+        addressText: { type: string }
+        manager: { type: string }
+        remarks: { type: string }
+        children: { type: array, items: { $ref: '#/components/schemas/Location' } }
+
+    LocationCreate:
+      type: object
+      required: [locationCode, locationName, locationType]
+      properties:
+        locationCode: { type: string }
+        locationName: { type: string }
+        locationType: { type: string }
+        parentLocation: { type: string }
+        addressText: { type: string }
+        manager: { type: string }
+        remarks: { type: string }
+
+    EquipmentModelCreate:
+      type: object
+      required: [modelCode, modelName]
+      properties:
+        modelCode: { type: string }
+        modelName: { type: string }
+        manufacturer: { type: string }
+        brand: { type: string }
+        modelSpec: { type: string }
+        category: { type: string }
+        defaultTechParams: { type: object }
+        remarks: { type: string }
+
+    EquipmentSparePartLinkCreate:
+      type: object
+      required: [equipment, sparePart]
+      properties:
+        equipment: { type: string }
+        sparePart: { type: string }
+        quantity: { type: integer }
+        unit: { type: string }
+        isCritical: { type: boolean }
+        replacementCycleDays: { type: integer }
+        remarks: { type: string }
+
+    PartNewVersion:
+      type: object
+      properties:
+        businessVersion: { type: string }
+        description: { type: string }
+
+    ProcedureStatusUpdate:
+      type: object
+      properties:
+        status: { type: string }
+        actualStart: { type: string, format: date-time }
+        actualEnd: { type: string, format: date-time }
+
+    SequenceUpdate:
+      type: object
+      properties:
+        sequenceNo: { type: integer }
+
+    WorkingProcedureBatch:
+      type: object
+      properties:
+        procedures:
+          type: array
+          items:
+            type: object
+            properties:
+              procedureCode: { type: string }
+              procedureName: { type: string }
+
+paths:
+  /v1/health:
+    get:
+      summary: 健康检查
+      operationId: healthCheck
+      security: []
+      responses:
+        '200':
+          description: 服务正常
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result: { type: string, example: SUCCESS }
+                  data: { type: array, items: { type: string } }
+                  errors: { type: array, items: { type: string } }
+
+  /api/equipment:
+    get:
+      tags: [设备管理]
+      summary: 分页查询设备列表
+      operationId: listEquipment
+      parameters:
+        - $ref: '#/components/parameters/pageNum'
+        - $ref: '#/components/parameters/pageSize'
+        - name: equipmentName
+          in: query
+          schema: { type: string }
+          description: 设备名称（模糊）
+        - name: equipmentCode
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: category
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          pageNum: { type: integer }
+                          pageSize: { type: integer }
+                          records:
+                            type: array
+                            items: { $ref: '#/components/schemas/EquipmentListItem' }
+    post:
+      tags: [设备管理]
+      summary: 创建设备
+      operationId: createEquipment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EquipmentCreate'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/equipment/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    get:
+      tags: [设备管理]
+      summary: 查询设备详情
+      operationId: getEquipment
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/EquipmentDetail'
+    put:
+      tags: [设备管理]
+      summary: 更新设备
+      operationId: updateEquipment
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EquipmentCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    delete:
+      tags: [设备管理]
+      summary: 删除设备
+      operationId: deleteEquipment
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/equipment/{id}/tech-params:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    get:
+      tags: [设备管理]
+      summary: 查询设备技术参数
+      operationId: getEquipmentTechParams
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: true
+                        description: 技术参数 JSON 对象，如 maxSpeed、power、precision 等
+    put:
+      tags: [设备管理]
+      summary: 更新设备技术参数
+      operationId: updateEquipmentTechParams
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/equipment/statistics/by-status:
+    get:
+      tags: [设备管理]
+      summary: 按状态统计设备
+      operationId: getEquipmentStatisticsByStatus
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/EquipmentStatistics'
+
+  /api/part:
+    get:
+      tags: [物料管理]
+      summary: 分页查询物料列表
+      operationId: listPart
+      parameters:
+        - $ref: '#/components/parameters/pageNum'
+        - $ref: '#/components/parameters/pageSize'
+        - name: partNumber
+          in: query
+          schema: { type: string }
+        - name: partName
+          in: query
+          schema: { type: string }
+        - name: category
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          pageNum: { type: integer }
+                          pageSize: { type: integer }
+                          records:
+                            type: array
+                            items: { $ref: '#/components/schemas/PartListItem' }
+    post:
+      tags: [物料管理]
+      summary: 创建物料
+      operationId: createPart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PartCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/part/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    get:
+      tags: [物料管理]
+      summary: 查询物料详情
+      operationId: getPart
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Part'
+    put:
+      tags: [物料管理]
+      summary: 更新物料
+      operationId: updatePart
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PartCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    delete:
+      tags: [物料管理]
+      summary: 删除物料
+      operationId: deletePart
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/part/{id}/new-version:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    post:
+      tags: [物料管理]
+      summary: 创建物料新版本
+      operationId: createPartNewVersion
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PartNewVersion' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/part/{masterId}/versions:
+    get:
+      tags: [物料管理]
+      summary: 查询物料所有版本
+      operationId: getPartVersions
+      parameters:
+        - name: masterId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/PartVersionItem' }
+
+  /api/part/by-category/{categoryPath}:
+    get:
+      tags: [物料管理]
+      summary: 按分类查询物料
+      operationId: listPartByCategory
+      parameters:
+        - name: categoryPath
+          in: path
+          required: true
+          schema: { type: string }
+          description: 分类路径，如 结构件/高强钢安装件
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Part' }
+
+  /api/part/statistics/stock:
+    get:
+      tags: [物料管理]
+      summary: 物料库存统计
+      operationId: getPartStockStatistics
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: { type: number }
+                        description: 物料分类或 ID 为 key，库存数量为 value
+
+  /api/working-procedure:
+    get:
+      tags: [工序管理]
+      summary: 分页查询工序列表
+      operationId: listWorkingProcedure
+      parameters:
+        - $ref: '#/components/parameters/pageNum'
+        - $ref: '#/components/parameters/pageSize'
+        - name: procedureName
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          pageNum: { type: integer }
+                          pageSize: { type: integer }
+                          records:
+                            type: array
+                            items: { $ref: '#/components/schemas/WorkingProcedure' }
+    post:
+      tags: [工序管理]
+      summary: 创建工序
+      operationId: createWorkingProcedure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkingProcedureCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/working-procedure/batch:
+    post:
+      tags: [工序管理]
+      summary: 批量创建工序
+      operationId: batchCreateWorkingProcedure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkingProcedureBatch' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/working-procedure/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    get:
+      tags: [工序管理]
+      summary: 查询工序详情
+      operationId: getWorkingProcedure
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WorkingProcedure'
+    put:
+      tags: [工序管理]
+      summary: 更新工序
+      operationId: updateWorkingProcedure
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkingProcedureCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    delete:
+      tags: [工序管理]
+      summary: 删除工序
+      operationId: deleteWorkingProcedure
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/working-procedure/{id}/status:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    patch:
+      tags: [工序管理]
+      summary: 更新工序状态
+      operationId: updateWorkingProcedureStatus
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProcedureStatusUpdate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/working-plan:
+    get:
+      tags: [工艺路线]
+      summary: 分页查询工艺路线列表
+      operationId: listWorkingPlan
+      parameters:
+        - $ref: '#/components/parameters/pageNum'
+        - $ref: '#/components/parameters/pageSize'
+        - name: planName
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          pageNum: { type: integer }
+                          pageSize: { type: integer }
+                          records:
+                            type: array
+                            items: { $ref: '#/components/schemas/WorkingPlan' }
+    post:
+      tags: [工艺路线]
+      summary: 创建工艺路线
+      operationId: createWorkingPlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkingPlanCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/working-plan/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    get:
+      tags: [工艺路线]
+      summary: 查询工艺路线详情
+      operationId: getWorkingPlan
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WorkingPlanDetail'
+    put:
+      tags: [工艺路线]
+      summary: 更新工艺路线
+      operationId: updateWorkingPlan
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkingPlanCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    delete:
+      tags: [工艺路线]
+      summary: 删除工艺路线
+      operationId: deleteWorkingPlan
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/working-plan/{id}/new-version:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    post:
+      tags: [工艺路线]
+      summary: 创建工艺新版本
+      operationId: createWorkingPlanNewVersion
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/working-plan/{id}/procedures:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    get:
+      tags: [工艺路线]
+      summary: 查询工艺路线的所有工序
+      operationId: getWorkingPlanProcedures
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/PlanProcedureItem' }
+
+  /api/working-plan/{id}/equipment-usage:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    get:
+      tags: [工艺路线]
+      summary: 查询工艺路线设备使用情况
+      operationId: getWorkingPlanEquipmentUsage
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: { type: integer }
+                        description: 设备类型/名称为 key，使用数量为 value
+
+  /api/bom-item:
+    post:
+      tags: [BOM]
+      summary: 创建 BOM 项
+      operationId: createBOMItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BOMItemCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/bom-item/batch:
+    post:
+      tags: [BOM]
+      summary: 批量创建 BOM 项
+      operationId: batchCreateBOMItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/BOMItemCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/bom-item/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    get:
+      tags: [BOM]
+      summary: 查询 BOM 项详情
+      operationId: getBOMItem
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BOMItemDetail'
+    put:
+      tags: [BOM]
+      summary: 更新 BOM 项
+      operationId: updateBOMItem
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BOMItemCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    delete:
+      tags: [BOM]
+      summary: 删除 BOM 项
+      operationId: deleteBOMItem
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/bom-item/tree/{partId}:
+    get:
+      tags: [BOM]
+      summary: 查询物料 BOM 结构（树形）
+      operationId: getBOMTree
+      parameters:
+        - name: partId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BOMTreeRoot'
+
+  /api/bom-item/where-used/{partId}:
+    get:
+      tags: [BOM]
+      summary: 查询物料被哪些父项使用
+      operationId: getBOMWhereUsed
+      parameters:
+        - name: partId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/BOMItem' }
+
+  /api/plan-procedure-link:
+    post:
+      tags: [工艺工序关联]
+      summary: 为工艺路线添加工序
+      operationId: createPlanProcedureLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlanProcedureLinkCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/plan-procedure-link/batch:
+    post:
+      tags: [工艺工序关联]
+      summary: 批量添加工序（按顺序）
+      operationId: batchCreatePlanProcedureLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlanProcedureLinkBatch' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/plan-procedure-link/by-plan/{planId}:
+    get:
+      tags: [工艺工序关联]
+      summary: 查询工艺路线的工序列表（已排序）
+      operationId: getPlanProcedureLinksByPlan
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/PlanProcedureItem' }
+
+  /api/plan-procedure-link/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    put:
+      tags: [工艺工序关联]
+      summary: 更新工序顺序
+      operationId: updatePlanProcedureLinkSequence
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SequenceUpdate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    delete:
+      tags: [工艺工序关联]
+      summary: 删除工艺工序关联
+      operationId: deletePlanProcedureLink
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/procedure-equipment-link:
+    post:
+      tags: [工序设备关联]
+      summary: 为工序关联设备
+      operationId: createProcedureEquipmentLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProcedureEquipmentLinkCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/procedure-equipment-link/{id}/actual-time:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    patch:
+      tags: [工序设备关联]
+      summary: 更新设备实际使用时间
+      operationId: updateProcedureEquipmentActualTime
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProcedureStatusUpdate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/procedure-equipment-link/by-procedure/{procedureId}:
+    get:
+      tags: [工序设备关联]
+      summary: 查询工序使用的所有设备
+      operationId: getProcedureEquipmentByProcedure
+      parameters:
+        - name: procedureId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: string }
+                            procedure: { $ref: '#/components/schemas/ProcedureRef' }
+                            equipment1: { $ref: '#/components/schemas/EquipmentListItem' }
+                            role: { type: string }
+                            plannedStart: { type: string, format: date-time }
+                            plannedEnd: { type: string, format: date-time }
+                            actualStart: { type: string, format: date-time }
+                            actualEnd: { type: string, format: date-time }
+
+  /api/procedure-equipment-link/by-equipment/{equipmentId}:
+    get:
+      tags: [工序设备关联]
+      summary: 查询设备参与的所有工序
+      operationId: getProcedureEquipmentByEquipment
+      parameters:
+        - name: equipmentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: string }
+                            procedure: { $ref: '#/components/schemas/ProcedureRefWithCode' }
+                            equipment1: { $ref: '#/components/schemas/EquipmentListItem' }
+                            role: { type: string }
+
+  /api/procedure-equipment-link/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    delete:
+      tags: [工序设备关联]
+      summary: 删除工序设备关联
+      operationId: deleteProcedureEquipmentLink
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/procedure-part-link:
+    post:
+      tags: [工序物料关联]
+      summary: 为工序关联物料
+      operationId: createProcedurePartLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProcedurePartLinkCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/procedure-part-link/by-procedure/{procedureId}:
+    get:
+      tags: [工序物料关联]
+      summary: 查询工序的投入/产出物料
+      operationId: getProcedurePartByProcedure
+      parameters:
+        - name: procedureId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: role
+          in: query
+          schema: { type: string, enum: [Input, Output] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: string }
+                            procedure: { $ref: '#/components/schemas/ProcedureRef' }
+                            part1: { $ref: '#/components/schemas/PartRefWithNumber' }
+                            role: { type: string, enum: [Input, Output, Consumable, Tooling, Fixture] }
+                            quantity: { type: number }
+                            uom: { type: string }
+                            isMandatory: { type: boolean }
+
+  /api/procedure-part-link/by-part/{partId}:
+    get:
+      tags: [工序物料关联]
+      summary: 查询物料在哪些工序中使用
+      operationId: getProcedurePartByPart
+      parameters:
+        - name: partId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: string }
+                            procedure: { $ref: '#/components/schemas/ProcedureRefWithCode' }
+                            part1: { $ref: '#/components/schemas/PartRefWithNumber' }
+                            role: { type: string }
+                            quantity: { type: number }
+
+  /api/procedure-part-link/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    delete:
+      tags: [工序物料关联]
+      summary: 删除工序物料关联
+      operationId: deleteProcedurePartLink
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/business-partner:
+    get:
+      tags: [往来单位]
+      summary: 分页查询往来单位列表
+      operationId: listBusinessPartner
+      parameters:
+        - $ref: '#/components/parameters/pageNum'
+        - $ref: '#/components/parameters/pageSize'
+        - name: partnerName
+          in: query
+          schema: { type: string }
+        - name: partnerType
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          pageNum: { type: integer }
+                          pageSize: { type: integer }
+                          records:
+                            type: array
+                            items: { $ref: '#/components/schemas/BusinessPartner' }
+    post:
+      tags: [往来单位]
+      summary: 创建往来单位
+      operationId: createBusinessPartner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BusinessPartnerCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/business-partner/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    get:
+      tags: [往来单位]
+      summary: 查询往来单位详情
+      operationId: getBusinessPartner
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BusinessPartner'
+    put:
+      tags: [往来单位]
+      summary: 更新往来单位
+      operationId: updateBusinessPartner
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BusinessPartnerCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    delete:
+      tags: [往来单位]
+      summary: 删除往来单位
+      operationId: deleteBusinessPartner
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/business-partner/by-type/{partnerType}:
+    get:
+      tags: [往来单位]
+      summary: 按类型查询往来单位
+      operationId: listBusinessPartnerByType
+      parameters:
+        - name: partnerType
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/BusinessPartner' }
+
+  /api/partner-contact:
+    post:
+      tags: [联系人]
+      summary: 创建联系人
+      operationId: createPartnerContact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PartnerContactCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/partner-contact/by-partner/{partnerId}:
+    get:
+      tags: [联系人]
+      summary: 查询往来单位的所有联系人
+      operationId: getPartnerContactsByPartner
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/PartnerContact' }
+
+  /api/partner-contact/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    put:
+      tags: [联系人]
+      summary: 更新联系人
+      operationId: updatePartnerContact
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PartnerContactCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    delete:
+      tags: [联系人]
+      summary: 删除联系人
+      operationId: deletePartnerContact
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/department:
+    post:
+      tags: [部门]
+      summary: 创建部门
+      operationId: createDepartment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DepartmentCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/department/tree:
+    get:
+      tags: [部门]
+      summary: 查询部门树
+      operationId: getDepartmentTree
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/DepartmentTreeNode' }
+
+  /api/department/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    get:
+      tags: [部门]
+      summary: 查询部门详情
+      operationId: getDepartment
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Department'
+    put:
+      tags: [部门]
+      summary: 更新部门
+      operationId: updateDepartment
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DepartmentCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    delete:
+      tags: [部门]
+      summary: 删除部门
+      operationId: deleteDepartment
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/employee:
+    get:
+      tags: [员工]
+      summary: 分页查询员工列表
+      operationId: listEmployee
+      parameters:
+        - $ref: '#/components/parameters/pageNum'
+        - $ref: '#/components/parameters/pageSize'
+        - name: employeeName
+          in: query
+          schema: { type: string }
+        - name: employeeNo
+          in: query
+          schema: { type: string }
+        - name: dept
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          pageNum: { type: integer }
+                          pageSize: { type: integer }
+                          records:
+                            type: array
+                            items: { $ref: '#/components/schemas/Employee' }
+    post:
+      tags: [员工]
+      summary: 创建员工
+      operationId: createEmployee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmployeeCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/employee/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    get:
+      tags: [员工]
+      summary: 查询员工详情
+      operationId: getEmployee
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Employee'
+    put:
+      tags: [员工]
+      summary: 更新员工
+      operationId: updateEmployee
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmployeeCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    delete:
+      tags: [员工]
+      summary: 删除员工
+      operationId: deleteEmployee
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/employee/by-dept/{deptId}:
+    get:
+      tags: [员工]
+      summary: 按部门查询员工
+      operationId: listEmployeeByDept
+      parameters:
+        - name: deptId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Employee' }
+
+  /api/location:
+    post:
+      tags: [位置]
+      summary: 创建位置
+      operationId: createLocation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LocationCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/location/tree:
+    get:
+      tags: [位置]
+      summary: 查询位置树
+      operationId: getLocationTree
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/LocationTreeNode' }
+
+  /api/location/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    get:
+      tags: [位置]
+      summary: 查询位置详情
+      operationId: getLocation
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Location'
+    put:
+      tags: [位置]
+      summary: 更新位置
+      operationId: updateLocation
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LocationCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    delete:
+      tags: [位置]
+      summary: 删除位置
+      operationId: deleteLocation
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/location/{id}/equipments:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    get:
+      tags: [位置]
+      summary: 查询某位置下的所有设备
+      operationId: getLocationEquipments
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/EquipmentListItem' }
+
+  /api/equipment-model:
+    get:
+      tags: [设备机型]
+      summary: 分页查询设备机型列表
+      operationId: listEquipmentModel
+      parameters:
+        - $ref: '#/components/parameters/pageNum'
+        - $ref: '#/components/parameters/pageSize'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          pageNum: { type: integer }
+                          pageSize: { type: integer }
+                          records:
+                            type: array
+                            items: { $ref: '#/components/schemas/EquipmentModel' }
+    post:
+      tags: [设备机型]
+      summary: 创建设备机型
+      operationId: createEquipmentModel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EquipmentModelCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/equipment-model/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    get:
+      tags: [设备机型]
+      summary: 查询设备机型详情
+      operationId: getEquipmentModel
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/EquipmentModel'
+    put:
+      tags: [设备机型]
+      summary: 更新设备机型
+      operationId: updateEquipmentModel
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EquipmentModelCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    delete:
+      tags: [设备机型]
+      summary: 删除设备机型
+      operationId: deleteEquipmentModel
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/equipment-spare-part-link:
+    post:
+      tags: [设备备品备件]
+      summary: 为设备添加备品备件
+      operationId: createEquipmentSparePartLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EquipmentSparePartLinkCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/equipment-spare-part-link/by-equipment/{equipmentId}:
+    get:
+      tags: [设备备品备件]
+      summary: 查询设备的所有备品备件
+      operationId: getEquipmentSparePartByEquipment
+      parameters:
+        - name: equipmentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/EquipmentSparePartLinkItem' }
+
+  /api/equipment-spare-part-link/by-part/{partId}:
+    get:
+      tags: [设备备品备件]
+      summary: 查询物料作为备件被哪些设备使用
+      operationId: getEquipmentSparePartByPart
+      parameters:
+        - name: partId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/EquipmentSparePartLinkItem' }
+
+  /api/equipment-spare-part-link/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    put:
+      tags: [设备备品备件]
+      summary: 更新备品备件信息
+      operationId: updateEquipmentSparePartLink
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EquipmentSparePartLinkCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    delete:
+      tags: [设备备品备件]
+      summary: 删除备品备件关联
+      operationId: deleteEquipmentSparePartLink
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
