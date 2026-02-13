@@ -220,10 +220,10 @@ public class PartService {
         vo.setPartName(entity.getPartName());
         vo.setModelSpec(entity.getModelSpec());
         vo.setStockQty(entity.getStockQty());
-        // 从ObjectReference提取displayName
-        vo.setUnit(entity.getUnit() != null ? entity.getUnit().getDisplayName() : null);
-        vo.setSupplierName(entity.getSupplierName() != null ? entity.getSupplierName().getDisplayName() : null);
-        vo.setCategory(entity.getCategory() != null ? entity.getCategory().getDisplayName() : null);
+        // 从ObjectReference提取ID（TODO: 扩展为返回完整对象信息）
+        vo.setUnit(entity.getUnit() != null ? entity.getUnit().getId() : null);
+        vo.setSupplierName(entity.getSupplierName() != null ? entity.getSupplierName().getId() : null);
+        vo.setCategory(entity.getCategory() != null ? entity.getCategory().getId() : null);
         vo.setBusinessVersion(entity.getBusinessVersion());
         vo.setVersionNumber(entity.getVersion());  // SDK的version字段映射为versionNumber
         vo.setDescription(entity.getDescription());

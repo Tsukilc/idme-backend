@@ -35,7 +35,7 @@ public class Part {
     private String version;  // 版本号（系统生成，如"A.1"）
     private Boolean latestVersion;  // 是否最新版本
     private Boolean workingCopy;  // 是否工作副本（已检出）
-    private String workingState;  // 工作状态：CHECKED_IN/CHECKED_OUT
+    private WorkingStateRef workingState;  // 工作状态（CHECKED_IN/CHECKED_OUT，SDK返回Object）
     
     // === 业务字段 ===
     private String partNumber;  // 物料编号

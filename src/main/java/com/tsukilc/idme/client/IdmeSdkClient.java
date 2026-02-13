@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +30,9 @@ public class IdmeSdkClient {
     private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final IdmeConfig idmeConfig;
-    private final String authHeader;
+    
+    // SDK 要求的固定用户身份（用于避免 modifier 字段不一致问题）
+    private static final String SDK_USER = "sysadmin 1";
     
     @Autowired
     public IdmeSdkClient(IdmeConfig idmeConfig, ObjectMapper objectMapper) {
@@ -45,11 +46,7 @@ public class IdmeSdkClient {
             .writeTimeout(idmeConfig.getTimeout(), TimeUnit.MILLISECONDS)
             .build();
         
-        // 初始化 Basic Auth 认证头
-        String credentials = idmeConfig.getUsername() + ":" + idmeConfig.getPassword();
-        this.authHeader = "Basic " + Base64.getEncoder().encodeToString(credentials.getBytes());
-        
-        log.info("IdmeSdkClient 初始化完成，baseUrl: {}", idmeConfig.getBaseUrl());
+        log.info("IdmeSdkClient 初始化完成，baseUrl: {}, SDK_USER: {}", idmeConfig.getBaseUrl(), SDK_USER);
     }
     
     /**
@@ -60,7 +57,9 @@ public class IdmeSdkClient {
      */
     public <T> T create(String entityName, Object params, Class<T> responseType) {
         String url = buildUrl(entityName, "create");
-        RdmRequest<?> request = RdmRequest.of(params);
+        // 自动添加 creator 和 modifier 字段
+        Map<String, Object> enrichedParams = enrichWithUserFields(params);
+        RdmRequest<?> request = RdmRequest.of(enrichedParams);
         
         // SDK的create接口返回的data是数组，需要特殊处理
         return executeRequestForCreate(url, request, responseType);
@@ -74,9 +73,40 @@ public class IdmeSdkClient {
      */
     public <T> T update(String entityName, Object params, Class<T> responseType) {
         String url = buildUrl(entityName, "update");
-        RdmRequest<?> request = RdmRequest.of(params);
+        
+        // 将params转为Map，过滤掉系统字段（SDK update接口不接受这些字段），并注入 creator/modifier
+        Map<String, Object> filteredParams = filterSystemFields(params);
+        Map<String, Object> enrichedParams = enrichWithUserFields(filteredParams);
+        RdmRequest<?> request = RdmRequest.of(enrichedParams);
         // SDK的update接口返回的data也是数组
         return executeRequestForCreate(url, request, responseType);
+    }
+    
+    /**
+     * 过滤掉SDK不接受的系统字段（用于update请求）
+     */
+    private Map<String, Object> filterSystemFields(Object entity) {
+        try {
+            // 将entity转为Map
+            String json = objectMapper.writeValueAsString(entity);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = objectMapper.readValue(json, Map.class);
+            
+            // 移除只读系统字段（SDK update接口会拒绝这些字段）
+            // creator/modifier 由 enrichWithUserFields 统一注入
+            map.remove("createTime");
+            map.remove("lastUpdateTime");
+            map.remove("rdmDeleteFlag");
+            map.remove("rdmExtensionType");
+            map.remove("className");
+            map.remove("tenant");
+            
+            return map;
+        } catch (Exception e) {
+            log.error("过滤系统字段失败: {}", e.getMessage(), e);
+            // 如果过滤失败，返回原对象（让SDK处理错误）
+            return Map.of("原始对象", entity);
+        }
     }
     
     /**
@@ -88,7 +118,8 @@ public class IdmeSdkClient {
         String url = buildUrl(entityName, "delete");
         Map<String, Object> params = new HashMap<>();
         params.put("id", id);
-        RdmRequest<Map<String, Object>> request = RdmRequest.of(params);
+        Map<String, Object> enrichedParams = enrichWithUserFields(params);
+        RdmRequest<Map<String, Object>> request = RdmRequest.of(enrichedParams);
         executeRequest(url, request, Void.class);
     }
     
@@ -102,7 +133,8 @@ public class IdmeSdkClient {
         String url = buildUrl(entityName, "get");
         Map<String, Object> params = new HashMap<>();
         params.put("id", id);
-        RdmRequest<Map<String, Object>> request = RdmRequest.of(params);
+        Map<String, Object> enrichedParams = enrichWithUserFields(params);
+        RdmRequest<Map<String, Object>> request = RdmRequest.of(enrichedParams);
         // SDK的get接口返回的data也是数组
         return executeRequestForCreate(url, request, responseType);
     }
@@ -128,7 +160,8 @@ public class IdmeSdkClient {
             queryRequest.setCondition(new HashMap<>());
         }
         
-        RdmRequest<QueryRequest> request = RdmRequest.of(queryRequest);
+        Map<String, Object> enrichedParams = enrichWithUserFields(queryRequest);
+        RdmRequest<Map<String, Object>> request = RdmRequest.of(enrichedParams);
         return executeRequestForList(url, request, elementType);
     }
     
@@ -149,8 +182,33 @@ public class IdmeSdkClient {
             queryRequest.setCondition(new HashMap<>());
         }
         
-        RdmRequest<QueryRequest> request = RdmRequest.of(queryRequest);
+        Map<String, Object> enrichedParams = enrichWithUserFields(queryRequest);
+        RdmRequest<Map<String, Object>> request = RdmRequest.of(enrichedParams);
         return executeRequestForList(url, request, elementType);
+    }
+    
+    /**
+     * 为 params 注入 creator 和 modifier（SDK 要求，避免版本管理 modifier 不一致问题）
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> enrichWithUserFields(Object params) {
+        try {
+            Map<String, Object> map = params instanceof Map
+                ? (Map<String, Object>) params
+                : objectMapper.convertValue(params, Map.class);
+            map.put("creator", SDK_USER);
+            map.put("modifier", SDK_USER);
+            return map;
+        } catch (Exception e) {
+            log.warn("enrichWithUserFields 失败，使用原 params: {}", e.getMessage());
+            Map<String, Object> fallback = new HashMap<>();
+            fallback.put("creator", SDK_USER);
+            fallback.put("modifier", SDK_USER);
+            if (params instanceof Map) {
+                fallback.putAll((Map<String, Object>) params);
+            }
+            return fallback;
+        }
     }
     
     /**
@@ -170,9 +228,8 @@ public class IdmeSdkClient {
             Request httpRequest = new Request.Builder()
                 .url(url)
                 .post(RequestBody.create(jsonBody, MediaType.parse("application/json")))
-                .addHeader("Authorization", authHeader)
                 .addHeader("Content-Type", "application/json")
-                .addHeader("X-Auth-Token", "idme-api-token")  // iDME SDK 必需的认证头
+                .addHeader("X-Auth-Token", "idme-api-token")
                 .build();
             
             log.debug("发送请求: {} - {}", url, jsonBody);
@@ -247,7 +304,6 @@ public class IdmeSdkClient {
             Request httpRequest = new Request.Builder()
                 .url(url)
                 .post(RequestBody.create(jsonBody, MediaType.parse("application/json")))
-                .addHeader("Authorization", authHeader)
                 .addHeader("Content-Type", "application/json")
                 .addHeader("X-Auth-Token", "idme-api-token")
                 .build();
@@ -277,6 +333,16 @@ public class IdmeSdkClient {
                     if (rdmResponse.getErrors() != null && !rdmResponse.getErrors().isEmpty()) {
                         errorMsg += ": " + String.join(", ", rdmResponse.getErrors());
                     }
+                    // 尝试从响应中提取error_msg字段
+                    try {
+                        com.fasterxml.jackson.databind.JsonNode jsonNode = objectMapper.readTree(responseBody);
+                        if (jsonNode.has("error_msg")) {
+                            errorMsg += " - " + jsonNode.get("error_msg").asText();
+                        }
+                        if (jsonNode.has("error_code")) {
+                            errorMsg += " (错误码: " + jsonNode.get("error_code").asText() + ")";
+                        }
+                    } catch (Exception ignored) {}
                     throw new IdmeException(errorMsg);
                 }
                 
@@ -304,9 +370,8 @@ public class IdmeSdkClient {
             Request httpRequest = new Request.Builder()
                 .url(url)
                 .post(RequestBody.create(jsonBody, MediaType.parse("application/json")))
-                .addHeader("Authorization", authHeader)
                 .addHeader("Content-Type", "application/json")
-                .addHeader("X-Auth-Token", "idme-api-token")  // iDME SDK 必需的认证头
+                .addHeader("X-Auth-Token", "idme-api-token")
                 .build();
             
             log.debug("发送查询请求: {} - {}", url, jsonBody);
