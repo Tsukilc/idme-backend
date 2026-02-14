@@ -1,0 +1,1 @@
+华为云工业 mini app，采用 ai-coding 开发
