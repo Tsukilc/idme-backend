@@ -31,21 +31,38 @@ public class BOMItem {
     private String rdmExtensionType;
     private String className;
     
+    // === Link关系字段（双重命名）===
+    // SDK标准字段：source/target (必填)
+    @JsonDeserialize(using = ObjectReferenceDeserializer.class)
+    @JsonSerialize(using = ObjectReferenceSerializer.class)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private ObjectReference source;         // 源对象（-> Part子件）
+
+    @JsonDeserialize(using = ObjectReferenceDeserializer.class)
+    @JsonSerialize(using = ObjectReferenceSerializer.class)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private ObjectReference target;         // 目标对象（-> Part父件）
+
+    // 业务别名字段（需要同时设置）
+    @JsonDeserialize(using = ObjectReferenceDeserializer.class)
+    @JsonSerialize(using = ObjectReferenceSerializer.class)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private ObjectReference parentPart;     // 父项物料（与target同值）
+
+    @JsonDeserialize(using = ObjectReferenceDeserializer.class)
+    @JsonSerialize(using = ObjectReferenceSerializer.class)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private ObjectReference childPart;      // 子项物料（与source同值）
+
     // === 业务字段 ===
+    private Object quantity;                // 用量（SDK格式：{value: "1"}）
+
     @JsonDeserialize(using = ObjectReferenceDeserializer.class)
     @JsonSerialize(using = ObjectReferenceSerializer.class)
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private ObjectReference parentPart;     // 父项物料（-> Part），必填
-    
-    @JsonDeserialize(using = ObjectReferenceDeserializer.class)
-    @JsonSerialize(using = ObjectReferenceSerializer.class)
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    private ObjectReference childPart;      // 子项物料（-> Part），必填
-    
-    private BigDecimal quantity;            // 用量，必填
-    private String uom;                     // 单位
+    private ObjectReference uom;            // 计量单位（-> Unit）
     private Integer findNumber;             // 项次（10/20/30）
-    private LocalDate effectiveFrom;        // 生效时间
-    private LocalDate effectiveTo;          // 失效时间
+    private Object effectiveFrom;           // 生效时间（SDK可能返回Date或DateTime格式）
+    private Object effectiveTo;             // 失效时间（SDK可能返回Date或DateTime格式）
     private String remarks;                 // 备注
 }

@@ -30,18 +30,30 @@ public class PlanProcedureLink {
     private String rdmExtensionType;
     private String className;
     
-    // === 业务字段 ===
+    // === SDK标准关系对象字段 ===
     @JsonDeserialize(using = ObjectReferenceDeserializer.class)
     @JsonSerialize(using = ObjectReferenceSerializer.class)
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private ObjectReference plan;           // 工艺路线（-> WorkingPlan），必填
-    
+    private ObjectReference source;         // SDK标准字段：源对象（WorkingPlan）
+
     @JsonDeserialize(using = ObjectReferenceDeserializer.class)
     @JsonSerialize(using = ObjectReferenceSerializer.class)
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private ObjectReference procedure;      // 工序（-> WorkingProcedure），必填
-    
+    private ObjectReference target;         // SDK标准字段：目标对象（WorkingProcedure）
+
+    // === 业务别名字段 ===
+    @JsonDeserialize(using = ObjectReferenceDeserializer.class)
+    @JsonSerialize(using = ObjectReferenceSerializer.class)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private ObjectReference plan;           // 业务别名：工艺路线（-> WorkingPlan）
+
+    @JsonDeserialize(using = ObjectReferenceDeserializer.class)
+    @JsonSerialize(using = ObjectReferenceSerializer.class)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private ObjectReference procedure;      // 业务别名：工序（-> WorkingProcedure）
+
+    // === 其他业务字段 ===
     private Integer sequenceNo;             // 顺序号，必填
-    private BigDecimal standardDurationMin; // 标准工时(分钟)
+    private Object standardDurationMin;     // 标准工时(分钟)，SDK格式：{value: "60"}
     private String requirement;             // 工艺要求
 }

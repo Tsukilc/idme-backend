@@ -23,8 +23,8 @@ public class BOMItemVO {
     private BigDecimal quantity;            // 用量
     private String uom;                     // 单位
     private Integer findNumber;             // 项次
-    private LocalDate effectiveFrom;        // 生效时间
-    private LocalDate effectiveTo;          // 失效时间
+    private Object effectiveFrom;           // 生效时间（SDK可能返回不同格式）
+    private Object effectiveTo;             // 失效时间（SDK可能返回不同格式）
     private String remarks;                 // 备注
     
     // 树形结构支持

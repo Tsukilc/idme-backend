@@ -25,8 +25,16 @@ public class PlanProcedureLinkService {
 
     public String create(PlanProcedureLinkCreateDTO dto) {
         PlanProcedureLink entity = new PlanProcedureLink();
-        entity.setPlan(new ObjectReference(dto.getPlan(), "WorkingPlan"));
-        entity.setProcedure(new ObjectReference(dto.getProcedure(), "WorkingProcedure"));
+
+        // 双重字段命名：必须同时设置source/target和plan/procedure
+        ObjectReference planRef = new ObjectReference(dto.getPlan(), "WorkingPlan");
+        ObjectReference procedureRef = new ObjectReference(dto.getProcedure(), "WorkingProcedure");
+
+        entity.setSource(planRef);      // SDK标准字段
+        entity.setTarget(procedureRef); // SDK标准字段
+        entity.setPlan(planRef);        // 业务别名
+        entity.setProcedure(procedureRef); // 业务别名
+
         entity.setSequenceNo(dto.getSequenceNo());
         entity.setStandardDurationMin(dto.getStandardDurationMin());
         entity.setRequirement(dto.getRequirement());
@@ -52,11 +60,25 @@ public class PlanProcedureLinkService {
         List<String> createdIds = new ArrayList<>();
         for (PlanProcedureLinkBatchDTO.ProcedureItem item : dto.getProcedures()) {
             PlanProcedureLink entity = new PlanProcedureLink();
-            entity.setPlan(new ObjectReference(dto.getPlanId(), "WorkingPlan"));
-            entity.setProcedure(new ObjectReference(item.getProcedureId(), "WorkingProcedure"));
+
+            // 双重字段命名：必须同时设置source/target和plan/procedure
+            ObjectReference planRef = new ObjectReference(dto.getPlanId(), "WorkingPlan");
+            ObjectReference procedureRef = new ObjectReference(item.getProcedureId(), "WorkingProcedure");
+
+            entity.setSource(planRef);      // SDK标准字段
+            entity.setTarget(procedureRef); // SDK标准字段
+            entity.setPlan(planRef);        // 业务别名
+            entity.setProcedure(procedureRef); // 业务别名
+
             entity.setSequenceNo(item.getSequenceNo());
-            entity.setStandardDurationMin(item.getStandardDurationMin() != null ?
-                java.math.BigDecimal.valueOf(item.getStandardDurationMin()) : null);
+
+            // standardDurationMin：SDK要求 {value: "数值"} 格式
+            if (item.getStandardDurationMin() != null) {
+                Map<String, Object> durationMap = new HashMap<>();
+                durationMap.put("value", item.getStandardDurationMin().toString());
+                entity.setStandardDurationMin(durationMap);
+            }
+
             entity.setRequirement(item.getRequirement());
 
             String id = dao.create(entity).getId();

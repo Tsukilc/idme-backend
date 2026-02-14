@@ -10,6 +10,7 @@ import com.tsukilc.idme.vo.BOMItemVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -109,11 +110,22 @@ public class BOMItemService {
     }
 
     /**
-     * 更新BOM项
+     * 更新BOM项（清空系统字段）
      */
     public void update(String id, BOMItemCreateDTO dto) {
         BOMItem entity = convertToEntity(dto);
         entity.setId(id);
+
+        // 清空系统字段
+        entity.setCreator(null);
+        entity.setModifier(null);
+        entity.setCreateTime(null);
+        entity.setLastUpdateTime(null);
+        entity.setRdmDeleteFlag(null);
+        entity.setRdmExtensionType(null);
+        entity.setClassName(null);
+        entity.setRdmVersion(null);
+
         bomItemDao.update(entity);
     }
 
@@ -125,14 +137,59 @@ public class BOMItemService {
     }
 
     /**
-     * DTO -> Entity
+     * BOM反向查询（where-used查询）
+     * 查询某子件被哪些父件使用
+     */
+    public List<BOMItemVO> getWhereUsed(String partId) {
+        log.info("BOM反向查询，子件ID: {}", partId);
+
+        // 查询所有BOM项
+        List<BOMItem> all = bomItemDao.findAll(1, 1000);
+
+        // 筛选出子件ID = partId的BOM项
+        List<BOMItem> whereUsedItems = all.stream()
+                .filter(item -> {
+                    // 优先使用source字段（子件），fallback到childPart
+                    ObjectReference childRef = item.getSource() != null ? item.getSource() : item.getChildPart();
+                    return childRef != null && partId.equals(childRef.getId());
+                })
+                .collect(Collectors.toList());
+
+        log.info("反向查询完成，找到 {} 个父件使用此子件", whereUsedItems.size());
+
+        return whereUsedItems.stream()
+                .map(this::convertToVO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * DTO -> Entity（处理双重字段命名 + quantity特殊格式）
      */
     private BOMItem convertToEntity(BOMItemCreateDTO dto) {
         BOMItem entity = new BOMItem();
-        entity.setParentPart(new ObjectReference(dto.getParentPart(), "Part"));
-        entity.setChildPart(new ObjectReference(dto.getChildPart(), "Part"));
-        entity.setQuantity(dto.getQuantity());
-        entity.setUom(dto.getUom());
+
+        // 双重字段命名：source/target（SDK标准）+ parentPart/childPart（业务别名）
+        // source = childPart（子件）, target = parentPart（父件）
+        ObjectReference childPartRef = new ObjectReference(dto.getChildPart(), "Part");
+        ObjectReference parentPartRef = new ObjectReference(dto.getParentPart(), "Part");
+
+        entity.setSource(childPartRef);      // SDK标准字段
+        entity.setTarget(parentPartRef);     // SDK标准字段
+        entity.setChildPart(childPartRef);   // 业务别名
+        entity.setParentPart(parentPartRef); // 业务别名
+
+        // quantity：SDK要求 {value: "数值"} 格式
+        if (dto.getQuantity() != null) {
+            Map<String, Object> quantityMap = new HashMap<>();
+            quantityMap.put("value", dto.getQuantity().toString());
+            entity.setQuantity(quantityMap);
+        }
+
+        // uom：ObjectReference（-> Unit）
+        if (dto.getUom() != null) {
+            entity.setUom(new ObjectReference(dto.getUom(), "Unit"));
+        }
+
         entity.setFindNumber(dto.getFindNumber());
         entity.setEffectiveFrom(dto.getEffectiveFrom());
         entity.setEffectiveTo(dto.getEffectiveTo());
@@ -141,37 +198,56 @@ public class BOMItemService {
     }
 
     /**
-     * Entity -> VO
+     * Entity -> VO（处理quantity和uom的反向转换）
      */
     private BOMItemVO convertToVO(BOMItem entity) {
         BOMItemVO vo = new BOMItemVO();
         vo.setId(entity.getId());
-        
+
+        // 优先使用source/target提取数据（SDK标准字段）
+        ObjectReference parentRef = entity.getTarget() != null ? entity.getTarget() : entity.getParentPart();
+        ObjectReference childRef = entity.getSource() != null ? entity.getSource() : entity.getChildPart();
+
         // 处理 parentPart 引用
-        if (entity.getParentPart() != null) {
-            vo.setParentPart(entity.getParentPart().getId());
-            vo.setParentPartName(entity.getParentPart().getDisplayName() != null 
-                    ? entity.getParentPart().getDisplayName() 
-                    : entity.getParentPart().getName());
+        if (parentRef != null) {
+            vo.setParentPart(parentRef.getId());
+            vo.setParentPartName(parentRef.getDisplayName() != null
+                    ? parentRef.getDisplayName()
+                    : parentRef.getName());
         }
-        
+
         // 处理 childPart 引用
-        if (entity.getChildPart() != null) {
-            vo.setChildPart(entity.getChildPart().getId());
-            vo.setChildPartName(entity.getChildPart().getDisplayName() != null 
-                    ? entity.getChildPart().getDisplayName() 
-                    : entity.getChildPart().getName());
+        if (childRef != null) {
+            vo.setChildPart(childRef.getId());
+            vo.setChildPartName(childRef.getDisplayName() != null
+                    ? childRef.getDisplayName()
+                    : childRef.getName());
         }
-        
-        vo.setQuantity(entity.getQuantity());
-        vo.setUom(entity.getUom());
+
+        // quantity：SDK返回 {value: "1.000000"}，提取value转为BigDecimal
+        if (entity.getQuantity() != null) {
+            if (entity.getQuantity() instanceof Map) {
+                Object value = ((Map<?, ?>) entity.getQuantity()).get("value");
+                if (value != null) {
+                    vo.setQuantity(new BigDecimal(value.toString()));
+                }
+            } else if (entity.getQuantity() instanceof Number) {
+                vo.setQuantity(new BigDecimal(entity.getQuantity().toString()));
+            }
+        }
+
+        // uom：ObjectReference -> String ID
+        if (entity.getUom() != null) {
+            vo.setUom(entity.getUom().getId());
+        }
+
         vo.setFindNumber(entity.getFindNumber());
         vo.setEffectiveFrom(entity.getEffectiveFrom());
         vo.setEffectiveTo(entity.getEffectiveTo());
         vo.setRemarks(entity.getRemarks());
         vo.setCreateTime(entity.getCreateTime());
         vo.setLastUpdateTime(entity.getLastUpdateTime());
-        
+
         return vo;
     }
 }

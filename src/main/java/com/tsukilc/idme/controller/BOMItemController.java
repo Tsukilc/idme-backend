@@ -97,4 +97,13 @@ public class BOMItemController {
         bomItemService.delete(id);
         return ApiResponse.success(null);
     }
+
+    /**
+     * BOM反向查询（某子件被哪些父件使用）- where-used查询
+     */
+    @GetMapping("/where-used/{partId}")
+    public ApiResponse<List<BOMItemVO>> getWhereUsed(@PathVariable String partId) {
+        List<BOMItemVO> items = bomItemService.getWhereUsed(partId);
+        return ApiResponse.success(items);
+    }
 }

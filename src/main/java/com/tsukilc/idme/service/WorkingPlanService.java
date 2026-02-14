@@ -103,7 +103,14 @@ public class WorkingPlanService {
         entity.setEquipmentUsage(dto.getEquipmentUsage());
         entity.setStatus(dto.getStatus());
         entity.setRemarks(dto.getRemarks());
-        
+
+        // VersionObject 必需字段：master 和 branch
+        // 首次创建时传空对象，SDK会自动创建主对象和分支对象
+        ObjectReference master = new ObjectReference();
+        ObjectReference branch = new ObjectReference();
+        entity.setMaster(master);
+        entity.setBranch(branch);
+
         return entity;
     }
 
