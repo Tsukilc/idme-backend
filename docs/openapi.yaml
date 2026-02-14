@@ -48,6 +48,12 @@ tags:
     description: EquipmentModel
   - name: 设备备品备件
     description: EquipmentSparePartLink
+  - name: 计量单位
+    description: Unit
+  - name: 设备分类
+    description: EquipmentClassfication
+  - name: 物料分类
+    description: PartClassfication
 
 components:
   securitySchemes:
@@ -707,6 +713,56 @@ components:
               procedureCode: { type: string }
               procedureName: { type: string }
 
+    Unit:
+      type: object
+      properties:
+        id: { type: string }
+        unitName: { type: string, description: 单位名称 }
+        unitDisplayName: { type: string, description: 显示名称 }
+        unitCategory: { type: string, description: 单位类别 }
+        unitFactor: { type: number, description: 换算系数 }
+        mesurementSystem: { type: string, description: 计量体系 }
+        createTime: { type: string, format: date-time }
+        lastUpdateTime: { type: string, format: date-time }
+
+    UnitCreate:
+      type: object
+      required: [unitName]
+      properties:
+        unitName: { type: string, description: 单位名称 }
+        unitDisplayName: { type: string, description: 显示名称 }
+        unitCategory: { type: string, description: 单位类别 }
+        unitFactor: { type: number, description: 换算系数 }
+        mesurementSystem: { type: string, description: 计量体系 }
+
+    EquipmentClassfication:
+      type: object
+      properties:
+        id: { type: string }
+        equipmentClassName: { type: string, description: 设备分类名称 }
+        createTime: { type: string, format: date-time }
+        lastUpdateTime: { type: string, format: date-time }
+
+    EquipmentClassficationCreate:
+      type: object
+      required: [equipmentClassName]
+      properties:
+        equipmentClassName: { type: string, description: 设备分类名称 }
+
+    PartClassfication:
+      type: object
+      properties:
+        id: { type: string }
+        partClassName: { type: string, description: 物料分类名称 }
+        createTime: { type: string, format: date-time }
+        lastUpdateTime: { type: string, format: date-time }
+
+    PartClassficationCreate:
+      type: object
+      required: [partClassName]
+      properties:
+        partClassName: { type: string, description: 物料分类名称 }
+
 paths:
   /v1/health:
     get:
@@ -1015,6 +1071,54 @@ paths:
                       data:
                         type: array
                         items: { $ref: '#/components/schemas/PartVersionItem' }
+
+  /api/part/{masterId}/checkout:
+    post:
+      tags: [物料管理]
+      summary: 检出物料（创建工作副本）
+      operationId: checkoutPart
+      parameters:
+        - name: masterId
+          in: path
+          required: true
+          schema: { type: string }
+          description: 物料主对象ID
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Part'
+
+  /api/part/{masterId}/checkin:
+    post:
+      tags: [物料管理]
+      summary: 检入物料（保存为新版本）
+      operationId: checkinPart
+      parameters:
+        - name: masterId
+          in: path
+          required: true
+          schema: { type: string }
+          description: 物料主对象ID
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Part'
 
   /api/part/by-category/{categoryPath}:
     get:
@@ -2410,6 +2514,264 @@ paths:
       tags: [设备备品备件]
       summary: 删除备品备件关联
       operationId: deleteEquipmentSparePartLink
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/unit:
+    get:
+      tags: [计量单位]
+      summary: 分页查询计量单位列表
+      operationId: listUnit
+      parameters:
+        - $ref: '#/components/parameters/pageNum'
+        - $ref: '#/components/parameters/pageSize'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          pageNum: { type: integer }
+                          pageSize: { type: integer }
+                          records:
+                            type: array
+                            items: { $ref: '#/components/schemas/Unit' }
+    post:
+      tags: [计量单位]
+      summary: 创建计量单位
+      operationId: createUnit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UnitCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/unit/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    get:
+      tags: [计量单位]
+      summary: 查询计量单位详情
+      operationId: getUnit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Unit'
+    put:
+      tags: [计量单位]
+      summary: 更新计量单位
+      operationId: updateUnit
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UnitCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    delete:
+      tags: [计量单位]
+      summary: 删除计量单位
+      operationId: deleteUnit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/equipment-classfication:
+    get:
+      tags: [设备分类]
+      summary: 分页查询设备分类列表
+      operationId: listEquipmentClassfication
+      parameters:
+        - $ref: '#/components/parameters/pageNum'
+        - $ref: '#/components/parameters/pageSize'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          pageNum: { type: integer }
+                          pageSize: { type: integer }
+                          records:
+                            type: array
+                            items: { $ref: '#/components/schemas/EquipmentClassfication' }
+    post:
+      tags: [设备分类]
+      summary: 创建设备分类
+      operationId: createEquipmentClassfication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EquipmentClassficationCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/equipment-classfication/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    get:
+      tags: [设备分类]
+      summary: 查询设备分类详情
+      operationId: getEquipmentClassfication
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/EquipmentClassfication'
+    put:
+      tags: [设备分类]
+      summary: 更新设备分类
+      operationId: updateEquipmentClassfication
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EquipmentClassficationCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    delete:
+      tags: [设备分类]
+      summary: 删除设备分类
+      operationId: deleteEquipmentClassfication
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/part-classfication:
+    get:
+      tags: [物料分类]
+      summary: 分页查询物料分类列表
+      operationId: listPartClassfication
+      parameters:
+        - $ref: '#/components/parameters/pageNum'
+        - $ref: '#/components/parameters/pageSize'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          pageNum: { type: integer }
+                          pageSize: { type: integer }
+                          records:
+                            type: array
+                            items: { $ref: '#/components/schemas/PartClassfication' }
+    post:
+      tags: [物料分类]
+      summary: 创建物料分类
+      operationId: createPartClassfication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PartClassficationCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/part-classfication/{id}:
+    parameters: [{ $ref: '#/components/parameters/idPath' }]
+    get:
+      tags: [物料分类]
+      summary: 查询物料分类详情
+      operationId: getPartClassfication
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PartClassfication'
+    put:
+      tags: [物料分类]
+      summary: 更新物料分类
+      operationId: updatePartClassfication
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PartClassficationCreate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    delete:
+      tags: [物料分类]
+      summary: 删除物料分类
+      operationId: deletePartClassfication
       responses:
         '200':
           description: OK
