@@ -30,17 +30,28 @@ public class ProcedureEquipmentLink {
     private String className;
     
     // === 业务字段 ===
+    // SDK同时使用source/target（关系对象标准字段）和procedure/equipment1（业务别名）
     @JsonDeserialize(using = ObjectReferenceDeserializer.class)
     @JsonSerialize(using = ObjectReferenceSerializer.class)
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private ObjectReference procedure;      // 工序（-> WorkingProcedure），必填
-    
+    private ObjectReference source;         // 来源（-> WorkingProcedure），SDK标准字段
+
     @JsonDeserialize(using = ObjectReferenceDeserializer.class)
     @JsonSerialize(using = ObjectReferenceSerializer.class)
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private ObjectReference equipment1;     // 设备（-> Equipment），必填
-    
-    private String role;                    // 角色（生产/检测/辅助）
+    private ObjectReference target;         // 目标（-> Equipment），SDK标准字段
+
+    @JsonDeserialize(using = ObjectReferenceDeserializer.class)
+    @JsonSerialize(using = ObjectReferenceSerializer.class)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private ObjectReference procedure;      // 工序（-> WorkingProcedure），业务别名
+
+    @JsonDeserialize(using = ObjectReferenceDeserializer.class)
+    @JsonSerialize(using = ObjectReferenceSerializer.class)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private ObjectReference equipment1;     // 设备（-> Equipment），业务别名
+
+    private Object role;                    // 角色（SDK返回Map结构 {code, cnName, enName, alias}）
     private LocalDateTime plannedStart;     // 计划开始
     private LocalDateTime plannedEnd;       // 计划结束
     private LocalDateTime actualStart;      // 实际开始

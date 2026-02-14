@@ -163,42 +163,51 @@ public class WorkingProcedureService {
         vo.setProcedureCode(entity.getProcedureCode());
         vo.setProcedureName(entity.getProcedureName());
         vo.setSteps(entity.getSteps());
-        
-        // 处理 mainProductionEquipment 引用
+
+        // 处理 mainProductionEquipment 引用（只保存ID）
         if (entity.getMainProductionEquipment() != null) {
             vo.setMainProductionEquipment(entity.getMainProductionEquipment().getId());
-            vo.setMainProductionEquipmentName(
-                entity.getMainProductionEquipment().getDisplayName() != null 
-                    ? entity.getMainProductionEquipment().getDisplayName() 
-                    : entity.getMainProductionEquipment().getName());
         }
-        
-        // 处理 mainInspectionEquipment 引用
+
+        // 处理 mainInspectionEquipment 引用（只保存ID）
         if (entity.getMainInspectionEquipment() != null) {
             vo.setMainInspectionEquipment(entity.getMainInspectionEquipment().getId());
-            vo.setMainInspectionEquipmentName(
-                entity.getMainInspectionEquipment().getDisplayName() != null 
-                    ? entity.getMainInspectionEquipment().getDisplayName() 
-                    : entity.getMainInspectionEquipment().getName());
         }
-        
+
         vo.setOperatorUser(entity.getOperatorUser());
-        
-        // 处理 operatorRef 引用
+
+        // 处理 operatorRef 引用（只保存ID）
         if (entity.getOperatorRef() != null) {
             vo.setOperatorRef(entity.getOperatorRef().getId());
-            vo.setOperatorName(entity.getOperatorRef().getDisplayName() != null 
-                    ? entity.getOperatorRef().getDisplayName() 
-                    : entity.getOperatorRef().getName());
         }
-        
+
         vo.setStartTime(entity.getStartTime());
         vo.setEndTime(entity.getEndTime());
-        vo.setStatus(entity.getStatus());
+        vo.setStatus(convertEnumField(entity.getStatus()));
         vo.setRemarks(entity.getRemarks());
-        vo.setCreateTime(entity.getCreateTime());
-        vo.setLastUpdateTime(entity.getLastUpdateTime());
-        
+
         return vo;
+    }
+
+    /**
+     * 转换枚举字段（处理SDK返回的Map结构）
+     * SDK返回：{code:"XXX", cnName:"XXX", enName:"XXX", alias:"XXX"}
+     * 期望输出：String (enName值)
+     */
+    private String convertEnumField(Object sdkEnum) {
+        if (sdkEnum == null) {
+            return null;
+        }
+
+        // SDK返回的是Map类型，提取enName字段
+        if (sdkEnum instanceof java.util.Map) {
+            Object enName = ((java.util.Map<?, ?>) sdkEnum).get("enName");
+            if (enName != null) {
+                return enName.toString();
+            }
+        }
+
+        // 否则直接转换为字符串
+        return sdkEnum.toString();
     }
 }

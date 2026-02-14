@@ -113,70 +113,85 @@ public class EquipmentService {
         
         entity.setStatus(dto.getStatus());
         entity.setSerialNumber(dto.getSerialNumber());
-        entity.setCategory(dto.getCategory());
+
+        // 处理 category 引用
+        if (StringUtils.hasText(dto.getCategory())) {
+            entity.setCategory(new ObjectReference(dto.getCategory(), "EquipmentClassfication"));
+        }
+
         entity.setTechParams(dto.getTechParams());
         entity.setRemarks(dto.getRemarks());
-        
+
         return entity;
     }
 
     /**
-     * Entity -> VO
+     * Entity -> VO（严格遵循openapi.yaml）
      */
     private EquipmentVO convertToVO(Equipment entity) {
         EquipmentVO vo = new EquipmentVO();
         vo.setId(entity.getId());
         vo.setEquipmentCode(entity.getEquipmentCode());
         vo.setEquipmentName(entity.getEquipmentName());
-        
-        // 处理 manufacturerName 引用
+
+        // 处理 manufacturerName 引用（只保存ID）
         if (entity.getManufacturerName() != null) {
             vo.setManufacturerName(entity.getManufacturerName().getId());
-            vo.setManufacturerDisplayName(entity.getManufacturerName().getDisplayName() != null 
-                    ? entity.getManufacturerName().getDisplayName() 
-                    : entity.getManufacturerName().getName());
         }
-        
+
         vo.setBrand(entity.getBrand());
         vo.setModelSpec(entity.getModelSpec());
-        
-        // 处理 equipmentModelRef 引用
-        if (entity.getEquipmentModelRef() != null) {
-            vo.setEquipmentModelRef(entity.getEquipmentModelRef().getId());
-            vo.setEquipmentModelName(entity.getEquipmentModelRef().getDisplayName() != null 
-                    ? entity.getEquipmentModelRef().getDisplayName() 
-                    : entity.getEquipmentModelRef().getName());
-        }
-        
-        // 处理 supplierName 引用
+
+        // 处理 supplierName 引用（只保存ID）
         if (entity.getSupplierName() != null) {
             vo.setSupplierName(entity.getSupplierName().getId());
-            vo.setSupplierDisplayName(entity.getSupplierName().getDisplayName() != null 
-                    ? entity.getSupplierName().getDisplayName() 
-                    : entity.getSupplierName().getName());
         }
-        
+
         vo.setProductionDate(entity.getProductionDate());
         vo.setServiceLifeYears(entity.getServiceLifeYears());
-        vo.setDepreciationMethod(entity.getDepreciationMethod());
+        vo.setDepreciationMethod(convertEnumField(entity.getDepreciationMethod()));
         vo.setLocationText(entity.getLocationText());
-        
-        // 处理 locationRef 引用
+
+        // 处理 locationRef 引用（只保存ID）
         if (entity.getLocationRef() != null) {
             vo.setLocationRef(entity.getLocationRef().getId());
-            vo.setLocationName(entity.getLocationRef().getDisplayName() != null 
-                    ? entity.getLocationRef().getDisplayName() 
-                    : entity.getLocationRef().getName());
         }
-        
-        vo.setStatus(entity.getStatus());
+
+        vo.setStatus(convertEnumField(entity.getStatus()));
         vo.setSerialNumber(entity.getSerialNumber());
-        vo.setCategory(entity.getCategory());
+
+        // 处理 category 引用（只保存ID）
+        if (entity.getCategory() != null) {
+            vo.setCategory(entity.getCategory().getId());
+        }
+
         vo.setTechParams(entity.getTechParams());
         vo.setRemarks(entity.getRemarks());
         vo.setCreateTime(entity.getCreateTime());
-        vo.setLastUpdateTime(entity.getLastUpdateTime());
-        
+        vo.setLastModifiedTime(entity.getLastUpdateTime());
+
         return vo;
+    }
+
+    /**
+     * 转换枚举字段（处理SDK返回的Map结构）
+     * SDK返回：{code:"XXX", cnName:"XXX", enName:"XXX", alias:"XXX"}
+     * 期望输出：String (enName值)
+     */
+    private String convertEnumField(Object sdkEnum) {
+        if (sdkEnum == null) {
+            return null;
+        }
+
+        // SDK返回的是Map类型，提取enName字段
+        if (sdkEnum instanceof java.util.Map) {
+            Object enName = ((java.util.Map<?, ?>) sdkEnum).get("enName");
+            if (enName != null) {
+                return enName.toString();
+            }
+        }
+
+        // 否则直接转换为字符串
+        return sdkEnum.toString();
     }
 }

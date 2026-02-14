@@ -89,10 +89,15 @@ public class EquipmentModelService {
         
         entity.setBrand(dto.getBrand());
         entity.setModelSpec(dto.getModelSpec());
-        entity.setCategory(dto.getCategory());
+
+        // 处理 category 引用
+        if (StringUtils.hasText(dto.getCategory())) {
+            entity.setCategory(new ObjectReference(dto.getCategory(), "EquipmentClassfication"));
+        }
+
         entity.setDefaultTechParams(dto.getDefaultTechParams());
         entity.setRemarks(dto.getRemarks());
-        
+
         return entity;
     }
 
@@ -104,23 +109,23 @@ public class EquipmentModelService {
         vo.setId(entity.getId());
         vo.setModelCode(entity.getModelCode());
         vo.setModelName(entity.getModelName());
-        
-        // 处理 manufacturer 引用
+
+        // 处理 manufacturer 引用（只保存ID）
         if (entity.getManufacturer() != null) {
             vo.setManufacturer(entity.getManufacturer().getId());
-            vo.setManufacturerName(entity.getManufacturer().getDisplayName() != null 
-                    ? entity.getManufacturer().getDisplayName() 
-                    : entity.getManufacturer().getName());
         }
-        
+
         vo.setBrand(entity.getBrand());
         vo.setModelSpec(entity.getModelSpec());
-        vo.setCategory(entity.getCategory());
+
+        // 处理 category 引用（只保存ID）
+        if (entity.getCategory() != null) {
+            vo.setCategory(entity.getCategory().getId());
+        }
+
         vo.setDefaultTechParams(entity.getDefaultTechParams());
         vo.setRemarks(entity.getRemarks());
-        vo.setCreateTime(entity.getCreateTime());
-        vo.setLastUpdateTime(entity.getLastUpdateTime());
-        
+
         return vo;
     }
 }

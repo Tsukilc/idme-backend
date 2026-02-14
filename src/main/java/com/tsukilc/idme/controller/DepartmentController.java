@@ -8,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 /**
  * 部门管理 Controller
  * 严格参照 docs/openapi.yaml 定义接口路径和参数
@@ -65,5 +67,30 @@ public class DepartmentController {
         log.info("删除部门，ID: {}", id);
         departmentService.delete(id);
         return ApiResponse.success(null);
+    }
+
+    /**
+     * 分页查询部门列表
+     * 对应：GET /api/department?pageNum=1&pageSize=10
+     */
+    @GetMapping
+    public ApiResponse<List<DepartmentVO>> list(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize
+    ) {
+        log.info("分页查询部门列表，pageNum: {}, pageSize: {}", pageNum, pageSize);
+        List<DepartmentVO> list = departmentService.list(pageNum, pageSize);
+        return ApiResponse.success(list);
+    }
+
+    /**
+     * 查询部门树
+     * 对应：GET /api/department/tree
+     */
+    @GetMapping("/tree")
+    public ApiResponse<List<DepartmentService.DepartmentTreeVO>> getTree() {
+        log.info("查询部门树");
+        List<DepartmentService.DepartmentTreeVO> tree = departmentService.getTree();
+        return ApiResponse.success(tree);
     }
 }

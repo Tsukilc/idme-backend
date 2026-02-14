@@ -3,8 +3,7 @@ package com.tsukilc.idme.dto;
 import lombok.Data;
 
 import jakarta.validation.constraints.NotBlank;
-import java.time.LocalDate;
-import java.util.Map;
+import java.time.LocalDateTime;
 
 /**
  * 设备创建/更新 DTO
@@ -24,14 +23,14 @@ public class EquipmentCreateDTO {
     
     @NotBlank(message = "供应商不能为空")
     private String supplierName;            // 供应商ID（-> BusinessPartner），SDK必填
-    private LocalDate productionDate;       // 生产日期
+    private LocalDateTime productionDate;   // 生产日期（SDK使用时间戳）
     private Integer serviceLifeYears;       // 使用年限
     private String depreciationMethod;      // 折旧方式
     private String locationText;            // 位置文本
     private String locationRef;             // 位置引用ID（-> Location）
     private String status;                  // 设备状态
     private String serialNumber;            // 序列号
-    private String category;                // 设备分类
-    private Map<String, Object> techParams; // 技术参数（JSON）
+    private String category;                // 设备分类ID（-> EquipmentClassfication，可选）
+    private Object techParams;              // 技术参数（SDK接受数组或对象）
     private String remarks;                 // 备注
 }

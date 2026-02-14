@@ -98,4 +98,37 @@ public class PartController {
         List<PartVO> list = partService.findByPartNumber(partNumber);
         return ApiResponse.success(list);
     }
+
+    /**
+     * 检出物料（创建工作副本）
+     * POST /api/part/{masterId}/checkout
+     */
+    @PostMapping("/{masterId}/checkout")
+    public ApiResponse<PartVO> checkout(@PathVariable String masterId) {
+        log.info("检出物料，masterId: {}", masterId);
+        PartVO vo = partService.checkout(masterId);
+        return ApiResponse.success(vo);
+    }
+
+    /**
+     * 检入物料（保存为新版本）
+     * POST /api/part/{masterId}/checkin
+     */
+    @PostMapping("/{masterId}/checkin")
+    public ApiResponse<PartVO> checkin(@PathVariable String masterId) {
+        log.info("检入物料，masterId: {}", masterId);
+        PartVO vo = partService.checkin(masterId);
+        return ApiResponse.success(vo);
+    }
+
+    /**
+     * 查询版本历史
+     * GET /api/part/{masterId}/history
+     */
+    @GetMapping("/{masterId}/history")
+    public ApiResponse<List<PartVO>> getVersionHistory(@PathVariable String masterId) {
+        log.info("查询物料版本历史，masterId: {}", masterId);
+        List<PartVO> list = partService.getVersionHistory(masterId);
+        return ApiResponse.success(list);
+    }
 }

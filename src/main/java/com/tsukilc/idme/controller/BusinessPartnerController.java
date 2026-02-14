@@ -17,7 +17,7 @@ import java.util.List;
  * 严格参照 docs/openapi.yaml 定义接口路径和参数
  */
 @RestController
-@RequestMapping("/api/businesspartner")
+@RequestMapping("/api/business-partner")
 @Slf4j
 public class BusinessPartnerController {
     
@@ -26,7 +26,7 @@ public class BusinessPartnerController {
     
     /**
      * 创建往来单位
-     * 对应：POST /api/businesspartner
+     * 对应：POST /api/business-partner
      */
     @PostMapping
     public ApiResponse<BusinessPartnerVO> create(@RequestBody @Valid BusinessPartnerCreateDTO dto) {
@@ -37,7 +37,7 @@ public class BusinessPartnerController {
     
     /**
      * 查询往来单位详情
-     * 对应：GET /api/businesspartner/{id}
+     * 对应：GET /api/business-partner/{id}
      */
     @GetMapping("/{id}")
     public ApiResponse<BusinessPartnerVO> getById(@PathVariable String id) {
@@ -48,7 +48,7 @@ public class BusinessPartnerController {
     
     /**
      * 更新往来单位
-     * 对应：PUT /api/businesspartner/{id}
+     * 对应：PUT /api/business-partner/{id}
      */
     @PutMapping("/{id}")
     public ApiResponse<BusinessPartnerVO> update(
@@ -62,7 +62,7 @@ public class BusinessPartnerController {
     
     /**
      * 删除往来单位
-     * 对应：DELETE /api/businesspartner/{id}
+     * 对应：DELETE /api/business-partner/{id}
      */
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable String id) {
@@ -73,7 +73,7 @@ public class BusinessPartnerController {
     
     /**
      * 分页查询往来单位列表
-     * 对应：GET /api/businesspartner
+     * 对应：GET /api/business-partner
      */
     @GetMapping
     public ApiResponse<PageResult<BusinessPartnerVO>> list(
@@ -82,13 +82,24 @@ public class BusinessPartnerController {
     ) {
         log.info("查询往来单位列表，pageNum: {}, pageSize: {}", pageNum, pageSize);
         List<BusinessPartnerVO> list = businessPartnerService.list(pageNum, pageSize);
-        
+
         PageResult<BusinessPartnerVO> pageResult = new PageResult<>();
         pageResult.setRecords(list);
         pageResult.setPageNum(pageNum);
         pageResult.setPageSize(pageSize);
         pageResult.setTotal(list.size());
-        
+
         return ApiResponse.success(pageResult);
+    }
+
+    /**
+     * 按类型查询往来单位
+     * 对应：GET /api/business-partner/by-type/{partnerType}
+     */
+    @GetMapping("/by-type/{partnerType}")
+    public ApiResponse<List<BusinessPartnerVO>> getByType(@PathVariable String partnerType) {
+        log.info("按类型查询往来单位，类型: {}", partnerType);
+        List<BusinessPartnerVO> list = businessPartnerService.getByType(partnerType);
+        return ApiResponse.success(list);
     }
 }

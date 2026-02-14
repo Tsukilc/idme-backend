@@ -10,7 +10,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -92,6 +95,77 @@ public class DepartmentService {
             .map(this::convertToVO)
             .collect(Collectors.toList());
     }
+
+    /**
+     * 查询部门树
+     * 返回树形结构的部门列表（根节点列表，每个根节点包含其子节点）
+     */
+    public List<DepartmentTreeVO> getTree() {
+        log.info("查询部门树");
+
+        // 查询所有部门（分页大小设置较大，假设部门总数不会超过1000）
+        List<Department> allDepartments = departmentDao.findAll(1, 1000);
+
+        // 转换为TreeVO
+        List<DepartmentTreeVO> allVOs = allDepartments.stream()
+            .map(this::convertToTreeVO)
+            .collect(Collectors.toList());
+
+        // 构建树形结构
+        return buildTree(allVOs);
+    }
+
+    /**
+     * 构建树形结构
+     * @param allNodes 所有节点的扁平列表
+     * @return 根节点列表（每个根节点包含其子树）
+     */
+    private List<DepartmentTreeVO> buildTree(List<DepartmentTreeVO> allNodes) {
+        // 1. 创建ID到节点的映射
+        Map<String, DepartmentTreeVO> nodeMap = new HashMap<>();
+        for (DepartmentTreeVO node : allNodes) {
+            nodeMap.put(node.getId(), node);
+            node.setChildren(new ArrayList<>()); // 初始化子节点列表
+        }
+
+        // 2. 构建树形关系
+        List<DepartmentTreeVO> roots = new ArrayList<>();
+        for (DepartmentTreeVO node : allNodes) {
+            if (node.getParentDept() == null || node.getParentDept().isEmpty()) {
+                // 没有父节点，是根节点
+                roots.add(node);
+            } else {
+                // 有父节点，添加到父节点的children中
+                DepartmentTreeVO parent = nodeMap.get(node.getParentDept());
+                if (parent != null) {
+                    parent.getChildren().add(node);
+                } else {
+                    // 父节点不存在，也视为根节点
+                    log.warn("部门 {} 的父节点 {} 不存在", node.getId(), node.getParentDept());
+                    roots.add(node);
+                }
+            }
+        }
+
+        return roots;
+    }
+
+    /**
+     * Entity -> TreeVO 转换
+     */
+    private DepartmentTreeVO convertToTreeVO(Department entity) {
+        DepartmentTreeVO vo = new DepartmentTreeVO();
+        vo.setId(entity.getId());
+        vo.setDeptCode(entity.getDeptCode());
+        vo.setDeptName(entity.getDeptName());
+
+        // 只保存父节点ID，用于构建树
+        if (entity.getParentDept() != null) {
+            vo.setParentDept(entity.getParentDept().getId());
+        }
+
+        return vo;
+    }
     
     /**
      * Entity -> VO 转换
@@ -156,5 +230,17 @@ public class DepartmentService {
         if (dto.getRemarks() != null) {
             entity.setRemarks(dto.getRemarks());
         }
+    }
+
+    /**
+     * 部门树节点 VO（内部类）
+     */
+    @lombok.Data
+    public static class DepartmentTreeVO {
+        private String id;
+        private String deptCode;
+        private String deptName;
+        private String parentDept;  // 仅用于构建树，不返回给前端
+        private List<DepartmentTreeVO> children;
     }
 }

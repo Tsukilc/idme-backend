@@ -16,14 +16,13 @@ public class PartCreateDTO {
     private String partName;  // 物料名称
     private String modelSpec;  // 规格型号
     
-    // TODO: 根据SDK实际要求调整数据类型
-    private Integer stockQty;  // 库存数量（暂时用整数）
-    
-    private String unit;  // 计量单位
-    
+    private Integer stockQty;  // 库存数量
+
+    private String unit;  // 计量单位ID
+
     private String supplierName;  // 供应商ID（字符串，前端传入BusinessPartner的ID）
     private String category;  // 物料分类ID（字符串，前端传入分类ID）
-    
+
     private String businessVersion;  // 业务版本号（展示用，如"1.0"）
     private String description;  // 描述
     private String drawingUrl;  // 图纸链接

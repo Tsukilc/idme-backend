@@ -9,7 +9,6 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Map;
 
 /**
  * 设备实体
@@ -53,9 +52,9 @@ public class Equipment {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private ObjectReference supplierName;   // 供应商（-> BusinessPartner）
     
-    private LocalDate productionDate;       // 生产日期
+    private LocalDateTime productionDate;   // 生产日期（SDK使用时间戳）
     private Integer serviceLifeYears;       // 使用年限
-    private String depreciationMethod;      // 折旧方式（枚举：直线法/双倍余额递减/年数总和/不折旧）
+    private Object depreciationMethod;      // 折旧方式（SDK返回Map结构 {code, cnName, enName, alias}）
     private String locationText;            // 位置文本（评分字段）
     
     @JsonDeserialize(using = ObjectReferenceDeserializer.class)
@@ -63,9 +62,13 @@ public class Equipment {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private ObjectReference locationRef;    // 位置引用（-> Location）
     
-    private String status;                  // 设备状态（枚举：运行/待机/维修/停机/报废）
+    private Object status;                  // 设备状态（SDK返回Map结构 {code, cnName, enName, alias}）
     private String serialNumber;            // 序列号
-    private String category;                // 设备分类
-    private Map<String, Object> techParams; // 技术参数（JSON，快捷扩展）
+
+    @JsonDeserialize(using = ObjectReferenceDeserializer.class)
+    @JsonSerialize(using = ObjectReferenceSerializer.class)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private ObjectReference category;       // 设备分类（-> EquipmentClassfication，可选）
+    private Object techParams;              // 技术参数（SDK返回数组格式）
     private String remarks;                 // 备注
 }

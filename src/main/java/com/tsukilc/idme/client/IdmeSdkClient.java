@@ -140,16 +140,68 @@ public class IdmeSdkClient {
     }
     
     /**
+     * 版本对象检出（Checkout）
+     * @param entityName 实体名称（如 Part、WorkingPlan）
+     * @param masterId 主对象ID
+     * @param workCopyType 工作副本类型（BOTH/ITERATION/VERSION）
+     * @return 检出后的工作副本对象
+     */
+    public <T> T checkout(String entityName, String masterId, String workCopyType, Class<T> responseType) {
+        String url = buildUrl(entityName, "checkout");
+        Map<String, Object> params = new HashMap<>();
+        params.put("masterId", masterId);
+        params.put("workCopyType", workCopyType != null ? workCopyType : "BOTH");
+        Map<String, Object> enrichedParams = enrichWithUserFields(params);
+        RdmRequest<Map<String, Object>> request = RdmRequest.of(enrichedParams);
+        return executeRequestForCreate(url, request, responseType);
+    }
+
+    /**
+     * 版本对象检入（Checkin）
+     * @param entityName 实体名称（如 Part、WorkingPlan）
+     * @param masterId 主对象ID
+     * @param viewNo 视图号（可选，通常为空字符串）
+     * @return 检入后的版本对象
+     */
+    public <T> T checkin(String entityName, String masterId, String viewNo, Class<T> responseType) {
+        String url = buildUrl(entityName, "checkin");
+        Map<String, Object> params = new HashMap<>();
+        params.put("masterId", masterId);
+        params.put("viewNo", viewNo != null ? viewNo : "");
+        Map<String, Object> enrichedParams = enrichWithUserFields(params);
+        RdmRequest<Map<String, Object>> request = RdmRequest.of(enrichedParams);
+        return executeRequestForCreate(url, request, responseType);
+    }
+
+    /**
+     * 查询版本历史
+     * @param entityName 实体名称
+     * @param masterId 主对象ID
+     * @return 历史版本列表
+     */
+    public <T> List<T> getVersionHistory(String entityName, String masterId, Class<T> elementType) {
+        // SDK通过list接口查询，condition指定master.id
+        String url = buildUrl(entityName, "list") + "?curPage=1&pageSize=1000";
+        QueryRequest queryRequest = new QueryRequest();
+        Map<String, Object> condition = new HashMap<>();
+        condition.put("master.id", masterId);
+        queryRequest.setCondition(condition);
+        Map<String, Object> enrichedParams = enrichWithUserFields(queryRequest);
+        RdmRequest<Map<String, Object>> request = RdmRequest.of(enrichedParams);
+        return executeRequestForList(url, request, elementType);
+    }
+
+    /**
      * 分页查询（使用list接口，返回完整的基础属性数据）
      * list接口返回完整的基础属性，无需手动指定字段
-     * 
+     *
      * @param entityName 实体名称
      * @param queryRequest 查询条件
      * @param curPage 当前页（从1开始）
      * @param pageSize 每页大小
      * @return 查询结果列表
      */
-    public <T> List<T> list(String entityName, QueryRequest queryRequest, 
+    public <T> List<T> list(String entityName, QueryRequest queryRequest,
                             int curPage, int pageSize, Class<T> elementType) {
         String url = buildUrl(entityName, "list") 
             + "?curPage=" + curPage + "&pageSize=" + pageSize;
@@ -198,6 +250,28 @@ public class IdmeSdkClient {
                 : objectMapper.convertValue(params, Map.class);
             map.put("creator", SDK_USER);
             map.put("modifier", SDK_USER);
+
+            // 特殊处理：hireDate字段需要转为Unix时间戳（毫秒）
+            // SDK使用UTC时区，所以这里也要用UTC
+            if (map.containsKey("hireDate") && map.get("hireDate") != null) {
+                Object hireDateValue = map.get("hireDate");
+                if (hireDateValue instanceof String) {
+                    // ISO字符串格式转为时间戳（UTC）
+                    try {
+                        java.time.LocalDateTime dateTime = java.time.LocalDateTime.parse((String) hireDateValue);
+                        long timestamp = dateTime.atZone(java.time.ZoneId.of("UTC")).toInstant().toEpochMilli();
+                        map.put("hireDate", timestamp);
+                    } catch (Exception e) {
+                        log.warn("hireDate转换失败: {}", e.getMessage());
+                    }
+                } else if (hireDateValue instanceof java.time.LocalDateTime) {
+                    // LocalDateTime对象转为时间戳（UTC）
+                    java.time.LocalDateTime dateTime = (java.time.LocalDateTime) hireDateValue;
+                    long timestamp = dateTime.atZone(java.time.ZoneId.of("UTC")).toInstant().toEpochMilli();
+                    map.put("hireDate", timestamp);
+                }
+            }
+
             return map;
         } catch (Exception e) {
             log.warn("enrichWithUserFields 失败，使用原 params: {}", e.getMessage());

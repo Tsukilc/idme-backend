@@ -9,7 +9,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -96,6 +98,19 @@ public class BusinessPartnerService {
     public List<BusinessPartnerVO> list(int pageNum, int pageSize) {
         log.info("查询往来单位列表，pageNum: {}, pageSize: {}", pageNum, pageSize);
         List<BusinessPartner> entities = businessPartnerDao.findAll(pageNum, pageSize);
+        return entities.stream()
+            .map(this::convertToVO)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * 按类型查询往来单位
+     */
+    public List<BusinessPartnerVO> getByType(String partnerType) {
+        log.info("按类型查询往来单位，类型: {}", partnerType);
+        Map<String, Object> condition = new HashMap<>();
+        condition.put("partnerType", partnerType);
+        List<BusinessPartner> entities = businessPartnerDao.findByCondition(condition, 1, 1000);
         return entities.stream()
             .map(this::convertToVO)
             .collect(Collectors.toList());

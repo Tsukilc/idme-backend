@@ -81,18 +81,43 @@ public class PartnerContactService {
     }
     
     /**
+     * 按 ID 查询联系人详情
+     */
+    public PartnerContactVO getById(String id) {
+        log.info("查询联系人详情，ID: {}", id);
+        PartnerContact entity = partnerContactDao.findById(id);
+        if (entity == null) {
+            throw new IdmeException("联系人不存在: " + id);
+        }
+        return convertToVO(entity);
+    }
+
+    /**
+     * 分页查询联系人列表
+     */
+    public List<PartnerContactVO> list(int pageNum, int pageSize) {
+        log.info("分页查询联系人列表，pageNum: {}, pageSize: {}", pageNum, pageSize);
+
+        List<PartnerContact> entities = partnerContactDao.findAll(pageNum, pageSize);
+
+        return entities.stream()
+            .map(this::convertToVO)
+            .collect(Collectors.toList());
+    }
+
+    /**
      * 按往来单位查询联系人列表
      */
     public List<PartnerContactVO> getByPartner(String partnerId) {
         log.info("查询往来单位的联系人列表，往来单位ID: {}", partnerId);
-        
+
         // 构建查询条件：partner = partnerId
         Map<String, Object> condition = new HashMap<>();
         condition.put("partner", partnerId);
-        
+
         // 执行查询（查询所有，不分页）
         List<PartnerContact> entities = partnerContactDao.findByCondition(condition, 1, 1000);
-        
+
         return entities.stream()
             .map(this::convertToVO)
             .collect(Collectors.toList());
@@ -110,13 +135,7 @@ public class PartnerContactService {
         vo.setEmail(entity.getEmail());
         vo.setRole(entity.getRole());
         vo.setRemarks(entity.getRemarks());
-        
-        // 处理参考对象字段
-        if (entity.getPartner() != null) {
-            vo.setPartner(entity.getPartner().getId());
-            vo.setPartnerName(entity.getPartner().getName());
-        }
-        
+
         return vo;
     }
     

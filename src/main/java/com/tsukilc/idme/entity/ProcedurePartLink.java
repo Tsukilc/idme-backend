@@ -30,20 +30,37 @@ public class ProcedurePartLink {
     private String rdmExtensionType;
     private String className;
     
-    // === 业务字段 ===
+    // === Link关系字段（双重命名）===
+    // SDK标准字段：source/target (必填)
     @JsonDeserialize(using = ObjectReferenceDeserializer.class)
     @JsonSerialize(using = ObjectReferenceSerializer.class)
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private ObjectReference procedure;      // 工序（-> WorkingProcedure），必填
-    
+    private ObjectReference source;         // 源对象（-> WorkingProcedure）
+
     @JsonDeserialize(using = ObjectReferenceDeserializer.class)
     @JsonSerialize(using = ObjectReferenceSerializer.class)
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private ObjectReference part1;          // 物料（-> Part），必填
-    
-    private String role;                    // 投入/产出角色（Input/Output/辅料/工装夹具）
+    private ObjectReference target;         // 目标对象（-> Part）
+
+    // 业务别名字段（需要同时设置）
+    @JsonDeserialize(using = ObjectReferenceDeserializer.class)
+    @JsonSerialize(using = ObjectReferenceSerializer.class)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private ObjectReference procedure;      // 工序（与source同值）
+
+    @JsonDeserialize(using = ObjectReferenceDeserializer.class)
+    @JsonSerialize(using = ObjectReferenceSerializer.class)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private ObjectReference part1;          // 物料（与target同值）
+
+    private Object role;                    // 投入/产出角色（Consumable/Fixture/Input/Tooling/Output）- SDK返回Map结构
     private BigDecimal quantity;            // 数量
-    private String uom;                     // 单位
+
+    @JsonDeserialize(using = ObjectReferenceDeserializer.class)
+    @JsonSerialize(using = ObjectReferenceSerializer.class)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private ObjectReference uom;            // 计量单位（-> Unit）
+
     private Boolean isMandatory;            // 是否必需
     private String remarks;                 // 备注
 }

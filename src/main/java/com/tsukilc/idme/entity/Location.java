@@ -31,7 +31,7 @@ public class Location {
     // === 业务字段 ===
     private String locationCode;       // 位置编码，必填，唯一
     private String locationName;       // 位置名称，必填
-    private String locationType;       // 位置类型枚举：Plant/Workshop/Line/Station/Warehouse
+    private Object locationType;       // 位置类型枚举：SDK返回Map结构 {code, cnName, enName, alias}
     
     @JsonDeserialize(using = ObjectReferenceDeserializer.class)
     @JsonSerialize(using = ObjectReferenceSerializer.class)

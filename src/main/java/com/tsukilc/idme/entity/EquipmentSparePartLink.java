@@ -39,9 +39,14 @@ public class EquipmentSparePartLink {
     @JsonSerialize(using = ObjectReferenceSerializer.class)
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private ObjectReference sparePart;      // 备件物料（-> Part），必填
-    
+
     private Integer quantity;               // 配置数量
-    private String unit;                    // 单位
+
+    @JsonDeserialize(using = ObjectReferenceDeserializer.class)
+    @JsonSerialize(using = ObjectReferenceSerializer.class)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private ObjectReference unit;           // 单位（-> Unit）
+
     private Boolean isCritical;             // 关键备件
     private Integer replacementCycleDays;   // 更换周期(天)
     private String remarks;                 // 备注

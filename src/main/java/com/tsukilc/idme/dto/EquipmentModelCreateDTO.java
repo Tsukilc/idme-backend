@@ -18,12 +18,10 @@ public class EquipmentModelCreateDTO {
     
     @NotBlank(message = "默认厂家不能为空")
     private String manufacturer;            // 默认厂家ID（-> BusinessPartner），SDK必填
-    
+
     private String brand;                   // 默认品牌
     private String modelSpec;               // 默认规格型号
-    
-    @NotBlank(message = "设备分类不能为空")
-    private String category;                // 设备分类ID（-> EquipmentClassfication），SDK必填
+    private String category;                // 设备分类ID（-> EquipmentClassfication，可选）
     private Map<String, Object> defaultTechParams;  // 默认技术参数模板（JSON）
     private String remarks;                 // 备注
 }

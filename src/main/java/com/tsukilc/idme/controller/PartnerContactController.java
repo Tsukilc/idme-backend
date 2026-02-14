@@ -35,6 +35,17 @@ public class PartnerContactController {
     }
     
     /**
+     * 查询联系人详情
+     * 对应：GET /api/partner-contact/{id}
+     */
+    @GetMapping("/{id}")
+    public ApiResponse<PartnerContactVO> getById(@PathVariable String id) {
+        log.info("查询联系人详情，ID: {}", id);
+        PartnerContactVO vo = partnerContactService.getById(id);
+        return ApiResponse.success(vo);
+    }
+
+    /**
      * 更新联系人
      * 对应：PUT /api/partner-contact/{id}
      */

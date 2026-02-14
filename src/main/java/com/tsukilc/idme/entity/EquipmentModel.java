@@ -40,7 +40,11 @@ public class EquipmentModel {
     
     private String brand;                   // 默认品牌
     private String modelSpec;               // 默认规格型号
-    private String category;                // 设备分类
+
+    @JsonDeserialize(using = ObjectReferenceDeserializer.class)
+    @JsonSerialize(using = ObjectReferenceSerializer.class)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private ObjectReference category;       // 设备分类（-> EquipmentClassfication，可选）
     private Map<String, Object> defaultTechParams;  // 默认技术参数模板（JSON）
     private String remarks;                 // 备注
 }

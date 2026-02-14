@@ -53,6 +53,6 @@ public class WorkingProcedure {
     
     private LocalDateTime startTime;        // 开始时间
     private LocalDateTime endTime;          // 结束时间
-    private String status;                  // 状态（枚举：未开始/进行中/已完成/暂停）
+    private Object status;                  // 状态（SDK可能返回Map结构 {code, cnName, enName, alias}）
     private String remarks;                 // 备注
 }

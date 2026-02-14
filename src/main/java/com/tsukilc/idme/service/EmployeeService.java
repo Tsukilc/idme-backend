@@ -136,8 +136,12 @@ public class EmployeeService {
         
         vo.setPhone(entity.getPhone());
         vo.setEmail(entity.getEmail());
-        
+
         // SDK 使用 Active/Separated/External，转换为中文
+        // 临时打印status的实际类型和内容
+        if (entity.getStatus() != null) {
+            log.info("status类型: {}, 内容: {}", entity.getStatus().getClass().getName(), entity.getStatus());
+        }
         vo.setStatus(convertStatus(entity.getStatus()));
         
         // hireDate 从 LocalDateTime 转为 LocalDate
@@ -168,15 +172,17 @@ public class EmployeeService {
         
         entity.setPhone(dto.getPhone());
         entity.setEmail(dto.getEmail());
-        
-        // 状态：前端传中文，转为 SDK 枚举
+
+        // 状态：前端传中文，转为 SDK 枚举（Active/Separated/External字符串）
         entity.setStatus(convertStatusToSdk(dto.getStatus()));
-        
-        // hireDate 从 LocalDate 转为 LocalDateTime
+
+        // hireDate：SDK创建时不需要设置LocalDateTime，而是在请求JSON中用时间戳
+        // 这里暂时不设置，由IdmeSdkClient处理（如果需要的话）
         if (dto.getHireDate() != null) {
+            // 将LocalDate转为LocalDateTime（当天0点）
             entity.setHireDate(dto.getHireDate().atStartOfDay());
         }
-        
+
         entity.setExtra(dto.getExtra());
         
         return entity;
@@ -223,15 +229,23 @@ public class EmployeeService {
      * SDK 状态转中文
      * Active -> 在职, Separated -> 离职, External -> 外协
      */
-    private String convertStatus(String sdkStatus) {
+    private String convertStatus(Object sdkStatus) {  // 临时改为Object
         if (sdkStatus == null) {
             return null;
         }
-        switch (sdkStatus) {
+        // 如果是Map类型（类似PartnerTypeRef），提取enName字段
+        if (sdkStatus instanceof java.util.Map) {
+            Object enName = ((java.util.Map<?, ?>) sdkStatus).get("enName");
+            if (enName != null) {
+                sdkStatus = enName.toString();
+            }
+        }
+        String statusStr = sdkStatus.toString();
+        switch (statusStr) {
             case "Active": return "在职";
             case "Separated": return "离职";
             case "External": return "外协";
-            default: return sdkStatus;
+            default: return statusStr;
         }
     }
     

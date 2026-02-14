@@ -19,24 +19,24 @@ public class Employee {
     private String employeeName;
     private ObjectReference dept;  // 参考对象
     private String jobTitle;
-    private String status;  // Active/Separated/External (SDK枚举)
+    private Object status;  // 临时改为Object，查看SDK返回的实际结构
     private String phone;
     private String email;
-    
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+
+    // @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")  // 去掉自定义格式，使用默认反序列化器
     private LocalDateTime hireDate;
-    
+
     private String userRef;
     private Map<String, Object> extra;
     
     // 系统字段（从 SDK 返回，内部使用，不暴露给前端）
     private String creator;
     private String modifier;
-    
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+
+    // @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")  // 去掉自定义格式，使用默认反序列化器
     private LocalDateTime createTime;
-    
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+
+    // @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")  // 去掉自定义格式，使用默认反序列化器
     private LocalDateTime lastUpdateTime;
     
     private Integer rdmVersion;

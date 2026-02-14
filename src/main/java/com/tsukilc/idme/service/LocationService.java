@@ -167,22 +167,42 @@ public class LocationService {
         vo.setId(entity.getId());
         vo.setLocationCode(entity.getLocationCode());
         vo.setLocationName(entity.getLocationName());
-        vo.setLocationType(entity.getLocationType());
+        vo.setLocationType(convertLocationType(entity.getLocationType()));
         vo.setAddressText(entity.getAddressText());
         vo.setRemarks(entity.getRemarks());
-        
-        // 处理参考对象字段
+
+        // 处理参考对象字段（只保存ID）
         if (entity.getParentLocation() != null) {
             vo.setParentLocation(entity.getParentLocation().getId());
-            vo.setParentLocationName(entity.getParentLocation().getName());
         }
-        
+
         if (entity.getManager() != null) {
             vo.setManager(entity.getManager().getId());
-            vo.setManagerName(entity.getManager().getName());
         }
-        
+
         return vo;
+    }
+
+    /**
+     * 转换locationType（处理SDK返回的Map结构）
+     * SDK返回：{code:"工厂", cnName:"工厂", enName:"Plant", alias:"Plant"}
+     * 期望输出：Plant
+     */
+    private String convertLocationType(Object sdkLocationType) {
+        if (sdkLocationType == null) {
+            return null;
+        }
+
+        // SDK返回的是Map类型，提取enName字段
+        if (sdkLocationType instanceof java.util.Map) {
+            Object enName = ((java.util.Map<?, ?>) sdkLocationType).get("enName");
+            if (enName != null) {
+                return enName.toString();
+            }
+        }
+
+        // 否则直接转换为字符串
+        return sdkLocationType.toString();
     }
     
     /**
@@ -193,13 +213,13 @@ public class LocationService {
         vo.setId(entity.getId());
         vo.setLocationCode(entity.getLocationCode());
         vo.setLocationName(entity.getLocationName());
-        vo.setLocationType(entity.getLocationType());
-        
+        vo.setLocationType(convertLocationType(entity.getLocationType()));
+
         // 只保存父节点ID，用于构建树
         if (entity.getParentLocation() != null) {
             vo.setParentLocation(entity.getParentLocation().getId());
         }
-        
+
         return vo;
     }
     
@@ -210,19 +230,20 @@ public class LocationService {
         Location entity = new Location();
         entity.setLocationCode(dto.getLocationCode());
         entity.setLocationName(dto.getLocationName());
+        // locationType: DTO中是String（Plant/Workshop等），直接使用
         entity.setLocationType(dto.getLocationType());
         entity.setAddressText(dto.getAddressText());
         entity.setRemarks(dto.getRemarks());
-        
+
         // 处理参考对象字段
         if (dto.getParentLocation() != null && !dto.getParentLocation().isEmpty()) {
             entity.setParentLocation(new ObjectReference(dto.getParentLocation(), "Location"));
         }
-        
+
         if (dto.getManager() != null && !dto.getManager().isEmpty()) {
             entity.setManager(new ObjectReference(dto.getManager(), "Employee"));
         }
-        
+
         return entity;
     }
     
@@ -237,6 +258,7 @@ public class LocationService {
             entity.setLocationName(dto.getLocationName());
         }
         if (dto.getLocationType() != null) {
+            // locationType: DTO中是String，直接使用
             entity.setLocationType(dto.getLocationType());
         }
         if (dto.getAddressText() != null) {
@@ -245,7 +267,7 @@ public class LocationService {
         if (dto.getRemarks() != null) {
             entity.setRemarks(dto.getRemarks());
         }
-        
+
         // 更新参考对象
         if (dto.getParentLocation() != null) {
             if (dto.getParentLocation().isEmpty()) {
@@ -254,7 +276,7 @@ public class LocationService {
                 entity.setParentLocation(new ObjectReference(dto.getParentLocation(), "Location"));
             }
         }
-        
+
         if (dto.getManager() != null) {
             if (dto.getManager().isEmpty()) {
                 entity.setManager(null);
