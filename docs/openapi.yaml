@@ -3,8 +3,38 @@ info:
   title: iDME 工业 MiniApp API
   description: |
     华为 iDME 数据建模引擎 - 工业 MiniApp 接口文档。
+
+    ## 快速开始
+
+    ### 推荐创建顺序（依赖链）
+
+    **Level 0（无依赖）**：Unit（计量单位）, BusinessPartner（往来单位）, EquipmentClassfication（设备分类）, PartClassfication（物料分类）
+
+    **Level 1**：Department（部门）, Employee（员工）
+
+    **Level 2**：EquipmentModel（设备型号）, Location（位置）
+
+    **Level 3**：Equipment（设备）, Part（物料）
+
+    **Level 4**：WorkingProcedure（工序）, WorkingPlan（工艺路线）
+
+    **Level 5**：BOMItem（BOM项）, PlanProcedureLink（计划-工序关联）, ProcedureEquipmentLink（工序-设备关联）, ProcedurePartLink（工序-物料关联）, EquipmentSparePartLink（设备-备件关联）
+
+    ### 注意事项
+    - **引用字段**（如 `manufacturerName`, `category`）需要传入对应模块的 **ID**，不是文本名称
+    - **Part** 和 **WorkingPlan** 是版本对象，`WorkingPlan.productPart` 引用 Part 时使用 `master.id` 而非实例 `id`
+    - **枚举值**使用英文（如 `Standby`, `Active`, `Machinery`）
+    - 所有接口的 example 字段已填充真实可用的示例ID，可直接复制使用
+
+    ### 示例数据
+    - 固定ID文档: `/docs/openapi-examples-ids.md`
+    - 测试文件: `/src/test/java/com/tsukilc/idme/integration/OpenApiExamplesDataTest.java`
+
+    ---
+
     - 管理界面: http://99.suyiiyii.top:8003/rdm_a1b52ff379ee46ed8928d7f2ceb908f6_app/services/index.html
     - 健康检查: http://99.suyiiyii.top:8003/rdm_a1b52ff379ee46ed8928d7f2ceb908f6_app/services/v1/health
+
     认证: Basic Auth 用户名 sysadmin / 密码见项目说明。
   version: 1.0.0
   contact:
@@ -336,10 +366,10 @@ components:
         supplierName: { type: string }
         productionDate: { type: string, format: date }
         serviceLifeYears: { type: integer }
-        depreciationMethod: { type: string, enum: [直线法, 双倍余额递减, 年数总和, 不折旧] }
+        depreciationMethod: { type: string, enum: [NoDepreciation, StraightLine, Double, SumOfYear], description: "折旧方式：不折旧/直线法/双倍余额递减法/年数总和法" }
         locationText: { type: string }
         locationRef: { type: string }
-        status: { type: string, enum: [运行, 待机, 维修, 停机, 报废] }
+        status: { type: string, enum: [Standby, InOperation, UnderMaintenance, Shutdown, Scrap], description: "设备状态：待机/运行中/维修中/停机/报废" }
         serialNumber: { type: string }
         category: { type: string }
         techParams: { type: object, description: 技术参数 JSON }
@@ -351,21 +381,73 @@ components:
       type: object
       required: [equipmentCode, equipmentName]
       properties:
-        equipmentCode: { type: string }
-        equipmentName: { type: string }
-        manufacturerName: { type: string }
-        brand: { type: string }
-        modelSpec: { type: string }
-        supplierName: { type: string }
-        productionDate: { type: string, format: date }
-        serviceLifeYears: { type: integer }
-        depreciationMethod: { type: string }
-        locationText: { type: string }
-        status: { type: string }
-        serialNumber: { type: string }
-        category: { type: string }
-        techParams: { type: object }
-        remarks: { type: string }
+        equipmentCode:
+          type: string
+          description: 设备编码（唯一）
+          example: "EQ-PROD-DEMO"
+        equipmentName:
+          type: string
+          description: 设备名称
+          example: "CNC加工中心A"
+        manufacturerName:
+          type: string
+          description: 生产厂家ID（-> BusinessPartner模块，partnerType=Machinery）
+          example: "2000000001"
+        brand:
+          type: string
+          description: 品牌
+          example: "华为"
+        modelSpec:
+          type: string
+          description: 型号规格
+        equipmentModelRef:
+          type: string
+          description: 设备型号ID（-> EquipmentModel模块，SDK必填）
+          example: "5000000001"
+        supplierName:
+          type: string
+          description: 供应商ID（-> BusinessPartner模块，SDK必填）
+          example: "2000000002"
+        productionDate:
+          type: string
+          format: date
+          description: 生产日期
+        serviceLifeYears:
+          type: integer
+          description: 使用年限
+        depreciationMethod:
+          type: string
+          enum: [NoDepreciation, StraightLine, Double, SumOfYear]
+          description: "折旧方式：不折旧/直线法/双倍余额递减法/年数总和法"
+          example: "StraightLine"
+        locationRef:
+          type: string
+          description: 位置ID（-> Location模块，SDK必填）
+          example: "5000000002"
+        locationText:
+          type: string
+          description: 位置文本描述
+        status:
+          type: string
+          enum: [Standby, InOperation, UnderMaintenance, Shutdown, Scrap]
+          description: "设备状态：待机/运行中/维修中/停机/报废"
+          example: "Standby"
+        serialNumber:
+          type: string
+          description: 序列号
+          example: "SN-PROD-001"
+        category:
+          type: string
+          description: 设备分类ID（-> EquipmentClassfication模块）
+          example: "3000000001"
+        techParams:
+          type: object
+          description: 技术参数（JSON扩展）
+          example: {"精度": "0.001mm", "功率": "7.5kW"}
+        remarks:
+          type: string
+          description: 备注
+          example: "示例设备"
 
     Part:
       type: object
@@ -375,7 +457,7 @@ components:
         partNumber: { type: string }
         partName: { type: string }
         modelSpec: { type: string }
-        stockQty: { type: number }
+        stockQty: { type: integer, description: "库存数量（整数，SDK要求int32）" }
         unit: { type: string }
         supplierName: { type: string }
         category: { type: string }
@@ -389,18 +471,50 @@ components:
 
     PartCreate:
       type: object
+      required: [partNumber, partName]
       properties:
-        partNumber: { type: string }
-        partName: { type: string }
-        modelSpec: { type: string }
-        stockQty: { type: number }
-        unit: { type: string }
-        supplierName: { type: string }
-        category: { type: string }
-        businessVersion: { type: string }
-        description: { type: string }
-        drawingUrl: { type: string }
-        extra: { type: object }
+        partNumber:
+          type: string
+          description: 物料编号（建议唯一）
+          example: "PART-DEMO"
+        partName:
+          type: string
+          description: 物料名称
+          example: "中心轮零件"
+        modelSpec:
+          type: string
+          description: 型号规格
+          example: "M-100"
+        stockQty:
+          type: integer
+          description: 库存数量（整数，SDK要求int32）
+          example: 100
+        unit:
+          type: string
+          description: 计量单位ID（-> Unit模块）
+          example: "1000000001"
+        supplierName:
+          type: string
+          description: 供应商ID（-> BusinessPartner模块，SDK必填）
+          example: "2000000002"
+        category:
+          type: string
+          description: 物料分类ID（-> PartClassfication模块）
+          example: "3000000002"
+        businessVersion:
+          type: string
+          description: 业务版本号（版本对象必填）
+          example: "1.0"
+        description:
+          type: string
+          description: 描述
+          example: "中心轮零件，用于传动系统"
+        drawingUrl:
+          type: string
+          description: 图纸URL
+        extra:
+          type: object
+          description: 扩展字段
 
     WorkingProcedure:
       type: object
@@ -422,17 +536,49 @@ components:
       type: object
       required: [procedureCode, procedureName]
       properties:
-        procedureCode: { type: string }
-        procedureName: { type: string }
-        steps: { type: string }
-        mainProductionEquipment: { type: string }
-        mainInspectionEquipment: { type: string }
-        operatorUser: { type: string }
-        operatorRef: { type: string }
-        startTime: { type: string, format: date-time }
-        endTime: { type: string, format: date-time }
-        status: { type: string }
-        remarks: { type: string }
+        procedureCode:
+          type: string
+          description: 工序编码
+          example: "WP-DEMO"
+        procedureName:
+          type: string
+          description: 工序名称
+          example: "粗加工"
+        steps:
+          type: string
+          description: 工序步骤
+          example: "1.上料 2.加工 3.检测"
+        mainProductionEquipment:
+          type: string
+          description: 主生产设备ID（-> Equipment模块）
+          example: "6000000001"
+        mainInspectionEquipment:
+          type: string
+          description: 主检测设备ID（-> Equipment模块，SDK必填）
+          example: "6000000002"
+        operatorUser:
+          type: string
+          description: 操作员用户ID（-> User模块，可选）
+        operatorRef:
+          type: string
+          description: 操作员ID（-> Employee模块）
+          example: "4000000002"
+        startTime:
+          type: string
+          format: date-time
+          description: 开始时间
+        endTime:
+          type: string
+          format: date-time
+          description: 结束时间
+        status:
+          type: string
+          enum: [NotStarted, InProgress, Completed, Paused]
+          description: "工序状态：未开始/进行中/已完成/已暂停"
+          example: "NotStarted"
+        remarks:
+          type: string
+          description: 备注
 
     WorkingPlan:
       type: object
@@ -457,17 +603,46 @@ components:
       type: object
       required: [planCode, planName]
       properties:
-        planCode: { type: string }
-        planName: { type: string }
-        businessVersion: { type: string }
-        productPart: { type: string }
-        description: { type: string }
-        operatorUser: { type: string }
-        operatorRef: { type: string }
-        operateTime: { type: string, format: date-time }
-        equipmentUsage: { type: object }
-        status: { type: string }
-        remarks: { type: string }
+        planCode:
+          type: string
+          description: 工艺路线编码
+          example: "PLAN-DEMO"
+        planName:
+          type: string
+          description: 工艺路线名称
+          example: "中心轮零件加工"
+        businessVersion:
+          type: string
+          description: 业务版本号（版本对象必填）
+          example: "1.0"
+        productPart:
+          type: string
+          description: "产品物料ID（-> Part.master.id，⚠️注意：引用Part的master ID，不是实例ID！）"
+          example: "864256962114625536"
+        description:
+          type: string
+          description: 描述
+          example: "中心轮零件加工工艺路线"
+        operatorUser:
+          type: string
+          description: 操作员用户ID（-> User模块，可选）
+        operatorRef:
+          type: string
+          description: 操作员ID（-> Employee模块，SDK必填）
+          example: "4000000002"
+        operateTime:
+          type: string
+          format: date-time
+          description: 操作时间
+        equipmentUsage:
+          type: object
+          description: 设备使用情况（JSON扩展）
+        status:
+          type: string
+          description: 工艺路线状态
+        remarks:
+          type: string
+          description: 备注
 
     BOMItem:
       type: object
@@ -486,24 +661,62 @@ components:
       type: object
       required: [parentPart, childPart, quantity]
       properties:
-        parentPart: { type: string }
-        childPart: { type: string }
-        quantity: { type: number }
-        uom: { type: string }
-        findNumber: { type: integer }
-        effectiveFrom: { type: string, format: date }
-        effectiveTo: { type: string, format: date }
-        remarks: { type: string }
+        parentPart:
+          type: string
+          description: 父件ID（-> Part模块）
+          example: "7000000001"
+        childPart:
+          type: string
+          description: 子件ID（-> Part模块）
+          example: "7000000001"
+        quantity:
+          type: number
+          description: 用量
+          example: 2.0
+        uom:
+          type: string
+          description: 计量单位ID（-> Unit模块）
+          example: "1000000001"
+        findNumber:
+          type: integer
+          description: 查找号
+          example: 1
+        effectiveFrom:
+          type: string
+          format: date
+          description: 生效开始日期
+          example: "2024-01-01"
+        effectiveTo:
+          type: string
+          format: date
+          description: 生效结束日期
+        remarks:
+          type: string
+          description: 备注
 
     PlanProcedureLinkCreate:
       type: object
       required: [plan, procedure, sequenceNo]
       properties:
-        plan: { type: string }
-        procedure: { type: string }
-        sequenceNo: { type: integer }
-        standardDurationMin: { type: number }
-        requirement: { type: string }
+        plan:
+          type: string
+          description: 工艺路线ID（-> WorkingPlan模块）
+          example: "8000000002"
+        procedure:
+          type: string
+          description: 工序ID（-> WorkingProcedure模块）
+          example: "8000000001"
+        sequenceNo:
+          type: integer
+          description: 序号
+          example: 1
+        standardDurationMin:
+          type: number
+          description: 标准工时（分钟）
+          example: 60
+        requirement:
+          type: string
+          description: 工艺要求
 
     PlanProcedureLinkBatch:
       type: object
@@ -524,26 +737,71 @@ components:
       type: object
       required: [procedure, equipment1]
       properties:
-        procedure: { type: string }
-        equipment1: { type: string }
-        role: { type: string, enum: [生产, 检测, 辅助] }
-        plannedStart: { type: string, format: date-time }
-        plannedEnd: { type: string, format: date-time }
-        actualStart: { type: string, format: date-time }
-        actualEnd: { type: string, format: date-time }
-        remarks: { type: string }
+        procedure:
+          type: string
+          description: 工序ID（-> WorkingProcedure模块）
+          example: "8000000001"
+        equipment1:
+          type: string
+          description: 设备ID（-> Equipment模块）
+          example: "6000000001"
+        role:
+          type: string
+          enum: [Production, Inspection, Auxiliary]
+          description: "设备角色：生产/检测/辅助"
+          example: "Production"
+        plannedStart:
+          type: string
+          format: date-time
+          description: 计划开始时间
+        plannedEnd:
+          type: string
+          format: date-time
+          description: 计划结束时间
+        actualStart:
+          type: string
+          format: date-time
+          description: 实际开始时间
+        actualEnd:
+          type: string
+          format: date-time
+          description: 实际结束时间
+        remarks:
+          type: string
+          description: 备注
 
     ProcedurePartLinkCreate:
       type: object
       required: [procedure, part1]
       properties:
-        procedure: { type: string }
-        part1: { type: string }
-        role: { type: string, enum: [Input, Output, Consumable, Tooling, Fixture] }
-        quantity: { type: number }
-        uom: { type: string }
-        isMandatory: { type: boolean }
-        remarks: { type: string }
+        procedure:
+          type: string
+          description: 工序ID（-> WorkingProcedure模块）
+          example: "8000000001"
+        part1:
+          type: string
+          description: 物料ID（-> Part模块）
+          example: "7000000001"
+        role:
+          type: string
+          enum: [Input, Output, Consumable, Tooling, Fixture]
+          description: "物料角色：投入/产出/消耗品/工装/夹具"
+          example: "Input"
+        quantity:
+          type: number
+          description: 数量
+          example: 1.0
+        uom:
+          type: string
+          description: 计量单位ID（-> Unit模块）
+          example: "1000000001"
+        isMandatory:
+          type: boolean
+          description: 是否必需
+          example: true
+        remarks:
+          type: string
+          description: 备注
 
     BusinessPartner:
       type: object
@@ -562,14 +820,36 @@ components:
       type: object
       required: [partnerCode, partnerName, partnerType]
       properties:
-        partnerCode: { type: string }
-        partnerName: { type: string }
-        partnerType: { type: string }
-        phone: { type: string }
-        email: { type: string }
-        website: { type: string }
-        addressText: { type: string }
-        extra: { type: object }
+        partnerCode:
+          type: string
+          description: 往来单位编码
+          example: "BP-MFG-DEMO"
+        partnerName:
+          type: string
+          description: 往来单位名称
+          example: "示例机床厂"
+        partnerType:
+          type: string
+          enum: [Aerospace, Semiconductor, Parts, Else, Chemical, Machinery, Mold]
+          description: "往来单位类型：航空航天/半导体/零部件/其他/化工/机械/模具"
+          example: "Machinery"
+        phone:
+          type: string
+          description: 联系电话
+          example: "010-12345678"
+        email:
+          type: string
+          description: 电子邮箱
+          example: "contact@example-mfg.com"
+        website:
+          type: string
+          description: 公司网站
+        addressText:
+          type: string
+          description: 地址
+        extra:
+          type: object
+          description: 扩展字段
 
     PartnerContactCreate:
       type: object
@@ -598,11 +878,25 @@ components:
       type: object
       required: [deptCode, deptName]
       properties:
-        deptCode: { type: string }
-        deptName: { type: string }
-        parentDept: { type: string }
-        manager: { type: string }
-        remarks: { type: string }
+        deptCode:
+          type: string
+          description: 部门编码
+          example: "DEPT-DEMO"
+        deptName:
+          type: string
+          description: 部门名称
+          example: "生产部"
+        parentDept:
+          type: string
+          description: 父部门ID（-> Department模块，可选，用于创建子部门）
+        manager:
+          type: string
+          description: 部门经理姓名
+          example: "张三"
+        remarks:
+          type: string
+          description: 备注
+          example: "示例部门"
 
     Employee:
       type: object
@@ -623,16 +917,45 @@ components:
       type: object
       required: [employeeNo, employeeName]
       properties:
-        employeeNo: { type: string }
-        employeeName: { type: string }
-        userRef: { type: string }
-        jobTitle: { type: string }
-        dept: { type: string }
-        phone: { type: string }
-        email: { type: string }
-        status: { type: string }
-        hireDate: { type: string, format: date }
-        extra: { type: object }
+        employeeNo:
+          type: string
+          description: 员工编号
+          example: "EMP-DEMO"
+        employeeName:
+          type: string
+          description: 员工姓名
+          example: "李四"
+        userRef:
+          type: string
+          description: 用户引用ID（-> User模块，可选）
+        jobTitle:
+          type: string
+          description: 职位
+          example: "操作员"
+        dept:
+          type: string
+          description: 部门ID（-> Department模块）
+          example: "4000000001"
+        phone:
+          type: string
+          description: 联系电话
+          example: "13800138000"
+        email:
+          type: string
+          description: 电子邮箱
+        status:
+          type: string
+          enum: [Active, Inactive, OnLeave]
+          description: "员工状态：在职/离职/请假"
+          example: "Active"
+        hireDate:
+          type: string
+          format: date
+          description: 入职日期
+          example: "2024-01-01"
+        extra:
+          type: object
+          description: 扩展字段
 
     Location:
       type: object
@@ -651,38 +974,98 @@ components:
       type: object
       required: [locationCode, locationName, locationType]
       properties:
-        locationCode: { type: string }
-        locationName: { type: string }
-        locationType: { type: string }
-        parentLocation: { type: string }
-        addressText: { type: string }
-        manager: { type: string }
-        remarks: { type: string }
+        locationCode:
+          type: string
+          description: 位置编码
+          example: "LOC-DEMO"
+        locationName:
+          type: string
+          description: 位置名称
+          example: "一车间"
+        locationType:
+          type: string
+          enum: [Plant, Workshop, Warehouse, Office]
+          description: "位置类型：工厂/车间/仓库/办公室"
+          example: "Plant"
+        parentLocation:
+          type: string
+          description: 父位置ID（-> Location模块，可选，用于创建层级结构）
+        addressText:
+          type: string
+          description: 地址
+        manager:
+          type: string
+          description: 位置管理员ID（-> Employee模块，SDK必填）
+          example: "4000000002"
+        remarks:
+          type: string
+          description: 备注
 
     EquipmentModelCreate:
       type: object
       required: [modelCode, modelName]
       properties:
-        modelCode: { type: string }
-        modelName: { type: string }
-        manufacturer: { type: string }
-        brand: { type: string }
-        modelSpec: { type: string }
-        category: { type: string }
-        defaultTechParams: { type: object }
-        remarks: { type: string }
+        modelCode:
+          type: string
+          description: 型号编码
+          example: "MODEL-DEMO"
+        modelName:
+          type: string
+          description: 型号名称
+          example: "CNC-5000"
+        manufacturer:
+          type: string
+          description: 生产厂家ID（-> BusinessPartner模块，partnerType=Machinery）
+          example: "2000000001"
+        brand:
+          type: string
+          description: 品牌
+          example: "华为"
+        modelSpec:
+          type: string
+          description: 型号规格
+        category:
+          type: string
+          description: 设备分类ID（-> EquipmentClassfication模块）
+          example: "3000000001"
+        defaultTechParams:
+          type: object
+          description: 默认技术参数（JSON扩展）
+        remarks:
+          type: string
+          description: 备注
 
     EquipmentSparePartLinkCreate:
       type: object
       required: [equipment, sparePart]
       properties:
-        equipment: { type: string }
-        sparePart: { type: string }
-        quantity: { type: integer }
-        unit: { type: string }
-        isCritical: { type: boolean }
-        replacementCycleDays: { type: integer }
-        remarks: { type: string }
+        equipment:
+          type: string
+          description: 设备ID（-> Equipment模块）
+          example: "6000000001"
+        sparePart:
+          type: string
+          description: 备件ID（-> Part模块）
+          example: "7000000001"
+        quantity:
+          type: integer
+          description: 数量
+          example: 2
+        unit:
+          type: string
+          description: 计量单位ID（-> Unit模块）
+          example: "1000000001"
+        isCritical:
+          type: boolean
+          description: 是否关键备件
+          example: true
+        replacementCycleDays:
+          type: integer
+          description: 更换周期（天）
+          example: 365
+        remarks:
+          type: string
+          description: 备注
 
     PartNewVersion:
       type: object
@@ -729,11 +1112,26 @@ components:
       type: object
       required: [unitName]
       properties:
-        unitName: { type: string, description: 单位名称 }
-        unitDisplayName: { type: string, description: 显示名称 }
-        unitCategory: { type: string, description: 单位类别 }
-        unitFactor: { type: number, description: 换算系数 }
-        mesurementSystem: { type: string, description: 计量体系 }
+        unitName:
+          type: string
+          description: 单位名称
+          example: "件"
+        unitDisplayName:
+          type: string
+          description: 显示名称
+          example: "piece"
+        unitCategory:
+          type: string
+          description: 单位类别
+          example: "数量"
+        unitFactor:
+          type: number
+          description: 换算系数
+          example: 1.0
+        mesurementSystem:
+          type: string
+          description: 计量体系
+          example: "公制"
 
     EquipmentClassfication:
       type: object
@@ -747,7 +1145,10 @@ components:
       type: object
       required: [equipmentClassName]
       properties:
-        equipmentClassName: { type: string, description: 设备分类名称 }
+        equipmentClassName:
+          type: string
+          description: 设备分类名称
+          example: "CNC加工中心"
 
     PartClassfication:
       type: object
@@ -761,7 +1162,10 @@ components:
       type: object
       required: [partClassName]
       properties:
-        partClassName: { type: string, description: 物料分类名称 }
+        partClassName:
+          type: string
+          description: 物料分类名称
+          example: "结构件"
 
 paths:
   /v1/health:
