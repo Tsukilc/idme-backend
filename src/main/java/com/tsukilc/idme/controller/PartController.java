@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 物料管理 Controller
@@ -130,5 +131,16 @@ public class PartController {
         log.info("查询物料版本历史，masterId: {}", masterId);
         List<PartVO> list = partService.getVersionHistory(masterId);
         return ApiResponse.success(list);
+    }
+
+    /**
+     * 物料库存统计
+     * GET /api/part/statistics/stock
+     */
+    @GetMapping("/statistics/stock")
+    public ApiResponse<Map<String, Integer>> getStockStatistics() {
+        log.info("查询物料库存统计");
+        Map<String, Integer> stats = partService.getStockStatistics();
+        return ApiResponse.success(stats);
     }
 }

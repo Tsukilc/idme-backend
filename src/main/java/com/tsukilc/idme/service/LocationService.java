@@ -1,5 +1,6 @@
 package com.tsukilc.idme.service;
 
+import com.tsukilc.idme.common.PageResult;
 import com.tsukilc.idme.dao.LocationDao;
 import com.tsukilc.idme.dto.LocationCreateDTO;
 import com.tsukilc.idme.entity.Location;
@@ -97,12 +98,19 @@ public class LocationService {
     /**
      * 查询位置列表（分页）
      */
-    public List<LocationVO> list(int pageNum, int pageSize) {
+    public PageResult<LocationVO> list(int pageNum, int pageSize) {
         log.info("查询位置列表，pageNum: {}, pageSize: {}", pageNum, pageSize);
         List<Location> entities = locationDao.findAll(pageNum, pageSize);
-        return entities.stream()
+        List<LocationVO> vos = entities.stream()
             .map(this::convertToVO)
             .collect(Collectors.toList());
+
+        PageResult<LocationVO> result = new PageResult<>();
+        result.setTotal(vos.size());
+        result.setPageNum(pageNum);
+        result.setPageSize(pageSize);
+        result.setRecords(vos);
+        return result;
     }
     
     /**

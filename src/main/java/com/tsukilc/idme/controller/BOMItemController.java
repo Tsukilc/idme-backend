@@ -48,9 +48,9 @@ public class BOMItemController {
      * 创建BOM项
      */
     @PostMapping
-    public ApiResponse<String> create(@Validated @RequestBody BOMItemCreateDTO dto) {
-        String id = bomItemService.create(dto);
-        return ApiResponse.success(id);
+    public ApiResponse<BOMItemVO> create(@Validated @RequestBody BOMItemCreateDTO dto) {
+        BOMItemVO vo = bomItemService.create(dto);
+        return ApiResponse.success(vo);
     }
 
     /**

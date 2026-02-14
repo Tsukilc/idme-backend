@@ -3,7 +3,7 @@ package com.tsukilc.idme.dto;
 import lombok.Data;
 
 import jakarta.validation.constraints.NotBlank;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 /**
  * 工序创建/更新 DTO
@@ -23,8 +23,8 @@ public class WorkingProcedureCreateDTO {
     private String mainInspectionEquipment; // 主检测设备ID（-> Equipment）
     private String operatorUser;            // 操作人员（系统人员）
     private String operatorRef;             // 操作人员ID（-> Employee）
-    private LocalDateTime startTime;        // 开始时间
-    private LocalDateTime endTime;          // 结束时间
+    private LocalDate startTime;            // 开始时间（前端传LocalDate，Service转为LocalDateTime）
+    private LocalDate endTime;              // 结束时间（前端传LocalDate，Service转为LocalDateTime）
     private String status;                  // 状态
     private String remarks;                 // 备注
 }

@@ -25,7 +25,7 @@ public class ProcedureEquipmentLinkService {
         this.dao = dao;
     }
 
-    public String create(ProcedureEquipmentLinkCreateDTO dto) {
+    public ProcedureEquipmentLinkVO create(ProcedureEquipmentLinkCreateDTO dto) {
         ProcedureEquipmentLink entity = new ProcedureEquipmentLink();
         // SDK同时需要source/target和procedure/equipment1
         ObjectReference procedureRef = new ObjectReference(dto.getProcedure(), "WorkingProcedure");
@@ -40,7 +40,8 @@ public class ProcedureEquipmentLinkService {
         entity.setActualStart(dto.getActualStart());
         entity.setActualEnd(dto.getActualEnd());
         entity.setRemarks(dto.getRemarks());
-        return dao.create(entity).getId();
+        ProcedureEquipmentLink created = dao.create(entity);
+        return convertToVO(created);
     }
 
     public List<ProcedureEquipmentLink> getByProcedure(String procedureId) {

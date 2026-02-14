@@ -3,7 +3,7 @@ package com.tsukilc.idme.dto;
 import lombok.Data;
 
 import jakarta.validation.constraints.NotBlank;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.Map;
 
 /**
@@ -22,7 +22,7 @@ public class WorkingPlanCreateDTO {
     private String description;             // 工艺描述
     private String operatorUser;            // 操作人员（系统人员）
     private String operatorRef;             // 操作人员ID（-> Employee）
-    private LocalDateTime operateTime;      // 操作时间
+    private LocalDate operateTime;          // 操作时间（日期格式，如2026-12-12）
     private Map<String, Object> equipmentUsage;  // 设备使用情况（JSON）
     private String status;                  // 状态（Draft/Released/Obsolete）
     private String remarks;                 // 备注

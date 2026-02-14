@@ -1,6 +1,7 @@
 package com.tsukilc.idme.controller;
 
 import com.tsukilc.idme.common.ApiResponse;
+import com.tsukilc.idme.common.PageResult;
 import com.tsukilc.idme.dto.PartnerContactCreateDTO;
 import com.tsukilc.idme.service.PartnerContactService;
 import com.tsukilc.idme.vo.PartnerContactVO;
@@ -22,7 +23,20 @@ public class PartnerContactController {
     
     @Autowired
     private PartnerContactService partnerContactService;
-    
+
+    /**
+     * 分页查询联系人列表
+     * 对应：GET /api/partner-contact?pageNum=1&pageSize=20
+     */
+    @GetMapping
+    public ApiResponse<PageResult<PartnerContactVO>> list(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        log.info("查询联系人列表，pageNum: {}, pageSize: {}", pageNum, pageSize);
+        PageResult<PartnerContactVO> result = partnerContactService.list(pageNum, pageSize);
+        return ApiResponse.success(result);
+    }
+
     /**
      * 创建联系人
      * 对应：POST /api/partner-contact

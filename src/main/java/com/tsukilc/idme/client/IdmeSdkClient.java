@@ -203,16 +203,54 @@ public class IdmeSdkClient {
      */
     public <T> List<T> list(String entityName, QueryRequest queryRequest,
                             int curPage, int pageSize, Class<T> elementType) {
-        String url = buildUrl(entityName, "list") 
+        String url = buildUrl(entityName, "list")
             + "?curPage=" + curPage + "&pageSize=" + pageSize;
-        
+
         // 如果没有查询条件，创建空条件
         if (queryRequest == null) {
             queryRequest = new QueryRequest();
             queryRequest.setCondition(new HashMap<>());
         }
-        
+
         Map<String, Object> enrichedParams = enrichWithUserFields(queryRequest);
+        RdmRequest<Map<String, Object>> request = RdmRequest.of(enrichedParams);
+        return executeRequestForList(url, request, elementType);
+    }
+
+    /**
+     * 使用find接口查询（支持复杂条件过滤）
+     * find接口支持filter条件，可以按嵌套字段过滤
+     *
+     * @param entityName 实体名称
+     * @param filter 过滤条件（格式：{joiner: "and", conditions: [{conditionName: "字段", operator: "=", conditionValues: ["值"]}]}）
+     * @param sorts 排序条件（格式：[{sort: "DESC", orderBy: "字段"}]）
+     * @param curPage 当前页（从1开始）
+     * @param pageSize 每页大小
+     * @return 查询结果列表
+     */
+    public <T> List<T> find(String entityName,
+                            Map<String, Object> filter,
+                            List<Map<String, String>> sorts,
+                            int curPage,
+                            int pageSize,
+                            Class<T> elementType) {
+        String url = buildUrl(entityName, "find") + "/" + pageSize + "/" + curPage;
+
+        // 构建params
+        Map<String, Object> params = new HashMap<>();
+        if (filter != null) {
+            params.put("filter", filter);
+        }
+        if (sorts != null) {
+            params.put("sorts", sorts);
+        }
+        params.put("isNeedTotal", true);
+
+        // 构建请求体
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("params", params);
+
+        Map<String, Object> enrichedParams = enrichWithUserFields(requestBody);
         RdmRequest<Map<String, Object>> request = RdmRequest.of(enrichedParams);
         return executeRequestForList(url, request, elementType);
     }
@@ -251,26 +289,8 @@ public class IdmeSdkClient {
             map.put("creator", SDK_USER);
             map.put("modifier", SDK_USER);
 
-            // 特殊处理：hireDate字段需要转为Unix时间戳（毫秒）
-            // SDK使用UTC时区，所以这里也要用UTC
-            if (map.containsKey("hireDate") && map.get("hireDate") != null) {
-                Object hireDateValue = map.get("hireDate");
-                if (hireDateValue instanceof String) {
-                    // ISO字符串格式转为时间戳（UTC）
-                    try {
-                        java.time.LocalDateTime dateTime = java.time.LocalDateTime.parse((String) hireDateValue);
-                        long timestamp = dateTime.atZone(java.time.ZoneId.of("UTC")).toInstant().toEpochMilli();
-                        map.put("hireDate", timestamp);
-                    } catch (Exception e) {
-                        log.warn("hireDate转换失败: {}", e.getMessage());
-                    }
-                } else if (hireDateValue instanceof java.time.LocalDateTime) {
-                    // LocalDateTime对象转为时间戳（UTC）
-                    java.time.LocalDateTime dateTime = (java.time.LocalDateTime) hireDateValue;
-                    long timestamp = dateTime.atZone(java.time.ZoneId.of("UTC")).toInstant().toEpochMilli();
-                    map.put("hireDate", timestamp);
-                }
-            }
+            // 统一处理所有日期时间字段（转为Unix时间戳）
+            convertDateFieldsToTimestamp(map);
 
             return map;
         } catch (Exception e) {
@@ -284,7 +304,42 @@ public class IdmeSdkClient {
             return fallback;
         }
     }
-    
+
+    /**
+     * 统一处理所有日期时间字段，转为Unix时间戳（SDK要求）
+     * 支持的字段：hireDate, productionDate, startTime, endTime等
+     */
+    private void convertDateFieldsToTimestamp(Map<String, Object> map) {
+        String[] dateFields = {"hireDate", "productionDate", "startTime", "endTime", "plannedStart", "plannedEnd", "actualStart", "actualEnd", "operateTime", "effectiveFrom", "effectiveTo"};
+
+        for (String field : dateFields) {
+            if (map.containsKey(field) && map.get(field) != null) {
+                Object value = map.get(field);
+
+                if (value instanceof java.time.LocalDateTime) {
+                    // LocalDateTime -> Unix时间戳（UTC）
+                    java.time.LocalDateTime dt = (java.time.LocalDateTime) value;
+                    long timestamp = dt.atZone(java.time.ZoneId.of("UTC")).toInstant().toEpochMilli();
+                    map.put(field, timestamp);
+                } else if (value instanceof java.time.LocalDate) {
+                    // LocalDate -> LocalDateTime -> Unix时间戳（UTC）
+                    java.time.LocalDateTime dt = ((java.time.LocalDate) value).atStartOfDay();
+                    long timestamp = dt.atZone(java.time.ZoneId.of("UTC")).toInstant().toEpochMilli();
+                    map.put(field, timestamp);
+                } else if (value instanceof String) {
+                    // ISO字符串格式 -> Unix时间戳（UTC）
+                    try {
+                        java.time.LocalDateTime dateTime = java.time.LocalDateTime.parse((String) value);
+                        long timestamp = dateTime.atZone(java.time.ZoneId.of("UTC")).toInstant().toEpochMilli();
+                        map.put(field, timestamp);
+                    } catch (Exception e) {
+                        log.warn("日期字段 {} 转换失败: {}", field, e.getMessage());
+                    }
+                }
+            }
+        }
+    }
+
     /**
      * 构建 URL
      */

@@ -54,7 +54,7 @@ public class ProcedurePartLink {
     private ObjectReference part1;          // 物料（与target同值）
 
     private Object role;                    // 投入/产出角色（Consumable/Fixture/Input/Tooling/Output）- SDK返回Map结构
-    private BigDecimal quantity;            // 数量
+    private Integer quantity;               // 数量（Integer类型，与EquipmentSparePartLink一致）
 
     @JsonDeserialize(using = ObjectReferenceDeserializer.class)
     @JsonSerialize(using = ObjectReferenceSerializer.class)

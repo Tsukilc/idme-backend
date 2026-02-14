@@ -6,6 +6,7 @@ import com.tsukilc.idme.dto.PlanProcedureLinkCreateDTO;
 import com.tsukilc.idme.dto.SequenceUpdateDTO;
 import com.tsukilc.idme.entity.PlanProcedureLink;
 import com.tsukilc.idme.service.PlanProcedureLinkService;
+import com.tsukilc.idme.vo.PlanProcedureLinkVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +24,7 @@ public class PlanProcedureLinkController {
     }
 
     @PostMapping
-    public ApiResponse<String> create(@Validated @RequestBody PlanProcedureLinkCreateDTO dto) {
+    public ApiResponse<PlanProcedureLinkVO> create(@Validated @RequestBody PlanProcedureLinkCreateDTO dto) {
         return ApiResponse.success(service.create(dto));
     }
 

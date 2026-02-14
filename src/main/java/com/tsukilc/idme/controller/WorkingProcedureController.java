@@ -50,9 +50,9 @@ public class WorkingProcedureController {
      * 创建工序
      */
     @PostMapping
-    public ApiResponse<String> create(@Validated @RequestBody WorkingProcedureCreateDTO dto) {
-        String id = workingProcedureService.create(dto);
-        return ApiResponse.success(id);
+    public ApiResponse<WorkingProcedureVO> create(@Validated @RequestBody WorkingProcedureCreateDTO dto) {
+        WorkingProcedureVO vo = workingProcedureService.create(dto);
+        return ApiResponse.success(vo);
     }
 
     /**

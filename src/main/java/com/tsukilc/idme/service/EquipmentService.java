@@ -28,10 +28,10 @@ public class EquipmentService {
     /**
      * 创建设备
      */
-    public String create(EquipmentCreateDTO dto) {
+    public EquipmentVO create(EquipmentCreateDTO dto) {
         Equipment entity = convertToEntity(dto);
         Equipment created = equipmentDao.create(entity);
-        return created.getId();
+        return convertToVO(created);
     }
 
     /**
@@ -76,6 +76,50 @@ public class EquipmentService {
     }
 
     /**
+     * 获取设备技术参数
+     */
+    public Object getTechParams(String id) {
+        Equipment equipment = getEntityById(id);
+        return equipment.getTechParams();
+    }
+
+    /**
+     * 更新设备技术参数
+     * 注意：SDK的techParams字段期望数组格式 [{}]，不是Map {}
+     */
+    public void updateTechParams(String id, java.util.Map<String, Object> techParams) {
+        Equipment equipment = getEntityById(id);
+
+        // SDK期望数组格式 [{}]，不是Map {}
+        java.util.List<java.util.Map<String, Object>> techParamsArray = new java.util.ArrayList<>();
+        techParamsArray.add(techParams);
+        equipment.setTechParams(techParamsArray);
+
+        // 清空系统字段（update接口不接受）
+        equipment.setCreator(null);
+        equipment.setModifier(null);
+        equipment.setCreateTime(null);
+        equipment.setLastUpdateTime(null);
+        equipment.setRdmDeleteFlag(null);
+        equipment.setRdmExtensionType(null);
+        equipment.setClassName(null);
+        equipment.setRdmVersion(null);
+
+        // 清空枚举字段（SDK返回的是Map，update时会反序列化失败）
+        equipment.setStatus(null);
+        equipment.setDepreciationMethod(null);
+
+        equipmentDao.update(equipment);
+    }
+
+    /**
+     * 根据ID获取Equipment实体（内部使用）
+     */
+    private Equipment getEntityById(String id) {
+        return equipmentDao.findById(id);
+    }
+
+    /**
      * DTO -> Entity
      */
     private Equipment convertToEntity(EquipmentCreateDTO dto) {
@@ -100,8 +144,11 @@ public class EquipmentService {
         if (StringUtils.hasText(dto.getSupplierName())) {
             entity.setSupplierName(new ObjectReference(dto.getSupplierName(), "BusinessPartner"));
         }
-        
-        entity.setProductionDate(dto.getProductionDate());
+
+        // 处理 productionDate（LocalDate -> LocalDateTime）
+        if (dto.getProductionDate() != null) {
+            entity.setProductionDate(dto.getProductionDate().atStartOfDay());
+        }
         entity.setServiceLifeYears(dto.getServiceLifeYears());
         entity.setDepreciationMethod(dto.getDepreciationMethod());
         entity.setLocationText(dto.getLocationText());
@@ -119,7 +166,19 @@ public class EquipmentService {
             entity.setCategory(new ObjectReference(dto.getCategory(), "EquipmentClassfication"));
         }
 
-        entity.setTechParams(dto.getTechParams());
+        // 处理 techParams：SDK期望数组格式 [{}]，不是Map {}
+        if (dto.getTechParams() != null) {
+            if (dto.getTechParams() instanceof java.util.Map) {
+                // 将Map转为数组格式
+                java.util.List<Object> techParamsArray = new java.util.ArrayList<>();
+                techParamsArray.add(dto.getTechParams());
+                entity.setTechParams(techParamsArray);
+            } else {
+                // 如果已经是数组格式，直接设置
+                entity.setTechParams(dto.getTechParams());
+            }
+        }
+
         entity.setRemarks(dto.getRemarks());
 
         return entity;

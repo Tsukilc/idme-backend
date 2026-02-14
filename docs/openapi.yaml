@@ -190,12 +190,20 @@ components:
 
     PlanProcedureItem:
       type: object
-      description: 工艺路线工序项
+      description: 工艺路线工序项（包含关联信息和工序详情）
       properties:
-        sequenceNo: { type: integer, description: 工序序号 }
-        procedure: { $ref: '#/components/schemas/ProcedureRefWithCode' }
+        linkId: { type: string, description: 关联ID }
+        sequence: { type: integer, description: 工序顺序 }
         standardDurationMin: { type: number, description: 标准工时(分钟) }
-        requirement: { type: string, description: 工序要求 }
+        procedureId: { type: string, description: 工序ID }
+        procedureCode: { type: string, description: 工序编号 }
+        procedureName: { type: string, description: 工序名称 }
+        steps: { type: string, description: 操作步骤 }
+        status: { type: string, description: 状态 }
+        mainProductionEquipment: { type: string, description: 主生产设备ID }
+        mainInspectionEquipment: { type: string, description: 主检测设备ID }
+        operatorRef: { type: string, description: 操作人员ID }
+        remarks: { type: string, description: 备注 }
 
     BOMTreeNode:
       type: object
@@ -379,7 +387,7 @@ components:
 
     EquipmentCreate:
       type: object
-      required: [equipmentCode, equipmentName]
+      required: [equipmentCode, equipmentName, manufacturerName]
       properties:
         equipmentCode:
           type: string
@@ -471,7 +479,7 @@ components:
 
     PartCreate:
       type: object
-      required: [partNumber, partName]
+      required: [partNumber, partName, unit, supplierName, category]
       properties:
         partNumber:
           type: string
@@ -527,8 +535,6 @@ components:
         mainInspectionEquipment: { type: string }
         operatorUser: { type: string }
         operatorRef: { type: string }
-        startTime: { type: string, format: date-time }
-        endTime: { type: string, format: date-time }
         status: { type: string, enum: [未开始, 进行中, 已完成, 暂停] }
         remarks: { type: string }
 
@@ -565,12 +571,12 @@ components:
           example: "4000000002"
         startTime:
           type: string
-          format: date-time
-          description: 开始时间
+          format: date
+          description: 开始时间（日期格式，如2025-04-05）
         endTime:
           type: string
-          format: date-time
-          description: 结束时间
+          format: date
+          description: 结束时间（日期格式，如2025-04-10）
         status:
           type: string
           enum: [NotStarted, InProgress, Completed, Paused]
@@ -667,8 +673,8 @@ components:
           example: "7000000001"
         childPart:
           type: string
-          description: 子件ID（-> Part模块）
-          example: "7000000001"
+          description: 子件ID（-> Part模块，⚠️不能与parentPart相同，否则触发循环引用检测）
+          example: "7000000002"
         quantity:
           type: number
           description: 用量
@@ -733,6 +739,19 @@ components:
               standardDurationMin: { type: number }
               requirement: { type: string }
 
+    PlanProcedureLink:
+      type: object
+      description: 计划-工序关联响应
+      properties:
+        id: { type: string }
+        plan: { type: string, description: 计划ID }
+        procedure: { type: string, description: 工序ID }
+        name: { type: string, description: 名称 }
+        description: { type: string, description: 描述 }
+        standardDurationMin: { type: number, description: 标准时长（分钟） }
+        sequenceNo: { type: integer, description: 序号 }
+        requirement: { type: string, description: 要求 }
+
     ProcedureEquipmentLinkCreate:
       type: object
       required: [procedure, equipment1]
@@ -770,6 +789,27 @@ components:
           type: string
           description: 备注
 
+    ProcedureEquipmentLink:
+      type: object
+      description: 工序-设备关联响应
+      properties:
+        id: { type: string }
+        procedure: { type: string, description: 工序ID }
+        procedureName: { type: string, description: 工序名称 }
+        equipment1: { type: string, description: 设备ID }
+        equipmentName: { type: string, description: 设备名称 }
+        role:
+          type: string
+          enum: [Production, Inspection, Auxiliary]
+          description: 设备角色
+        plannedStart: { type: string, format: date-time }
+        plannedEnd: { type: string, format: date-time }
+        actualStart: { type: string, format: date-time }
+        actualEnd: { type: string, format: date-time }
+        remarks: { type: string }
+        createTime: { type: string, format: date-time }
+        lastUpdateTime: { type: string, format: date-time }
+
     ProcedurePartLinkCreate:
       type: object
       required: [procedure, part1]
@@ -788,9 +828,9 @@ components:
           description: "物料角色：投入/产出/消耗品/工装/夹具"
           example: "Input"
         quantity:
-          type: number
-          description: 数量
-          example: 1.0
+          type: integer
+          description: 数量（整数）
+          example: 1
         uom:
           type: string
           description: 计量单位ID（-> Unit模块）
@@ -1240,7 +1280,13 @@ paths:
           description: 创建成功
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/EquipmentDetail'
 
   /api/equipment/{id}:
     parameters: [{ $ref: '#/components/parameters/idPath' }]
@@ -1390,7 +1436,13 @@ paths:
           description: OK
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Part'
 
   /api/part/{id}:
     parameters: [{ $ref: '#/components/parameters/idPath' }]
@@ -1616,7 +1668,13 @@ paths:
           description: OK
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WorkingProcedure'
 
   /api/working-procedure/batch:
     post:
@@ -1742,7 +1800,13 @@ paths:
           description: OK
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WorkingPlan'
 
   /api/working-plan/{id}:
     parameters: [{ $ref: '#/components/parameters/idPath' }]
@@ -1793,12 +1857,18 @@ paths:
       tags: [工艺路线]
       summary: 创建工艺新版本
       operationId: createWorkingPlanNewVersion
+      description: 使用checkout/checkin流程创建新的iteration版本
       responses:
         '200':
           description: OK
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/WorkingPlan' }
 
   /api/working-plan/{id}/procedures:
     parameters: [{ $ref: '#/components/parameters/idPath' }]
@@ -1856,7 +1926,13 @@ paths:
           description: OK
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BOMItemDetail'
 
   /api/bom-item/batch:
     post:
@@ -1985,7 +2061,13 @@ paths:
           description: OK
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PlanProcedureLink'
 
   /api/plan-procedure-link/batch:
     post:
@@ -2070,7 +2152,13 @@ paths:
           description: OK
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ProcedureEquipmentLink'
 
   /api/procedure-equipment-link/{id}/actual-time:
     parameters: [{ $ref: '#/components/parameters/idPath' }]
@@ -2788,7 +2876,13 @@ paths:
           description: OK
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/EquipmentModel'
 
   /api/equipment-model/{id}:
     parameters: [{ $ref: '#/components/parameters/idPath' }]

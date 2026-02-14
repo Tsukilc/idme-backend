@@ -24,7 +24,7 @@ public class ProcedureEquipmentLinkController {
     }
 
     @PostMapping
-    public ApiResponse<String> create(@Validated @RequestBody ProcedureEquipmentLinkCreateDTO dto) {
+    public ApiResponse<ProcedureEquipmentLinkVO> create(@Validated @RequestBody ProcedureEquipmentLinkCreateDTO dto) {
         return ApiResponse.success(service.create(dto));
     }
 

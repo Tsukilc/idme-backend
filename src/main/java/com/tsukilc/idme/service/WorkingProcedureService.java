@@ -33,10 +33,10 @@ public class WorkingProcedureService {
     /**
      * 创建工序
      */
-    public String create(WorkingProcedureCreateDTO dto) {
+    public WorkingProcedureVO create(WorkingProcedureCreateDTO dto) {
         WorkingProcedure entity = convertToEntity(dto);
         WorkingProcedure created = workingProcedureDao.create(entity);
-        return created.getId();
+        return convertToVO(created);
     }
 
     /**
@@ -45,12 +45,12 @@ public class WorkingProcedureService {
     public List<String> batchCreate(WorkingProcedureBatchCreateDTO dto) {
         log.info("批量创建工序，数量: {}", dto.getProcedures().size());
         List<String> ids = new ArrayList<>();
-        
+
         for (WorkingProcedureCreateDTO procedureDto : dto.getProcedures()) {
-            String id = create(procedureDto);
-            ids.add(id);
+            WorkingProcedureVO vo = create(procedureDto);
+            ids.add(vo.getId());
         }
-        
+
         log.info("批量创建完成，成功创建 {} 个工序", ids.size());
         return ids;
     }
@@ -145,9 +145,14 @@ public class WorkingProcedureService {
         if (StringUtils.hasText(dto.getOperatorRef())) {
             entity.setOperatorRef(new ObjectReference(dto.getOperatorRef(), "Employee"));
         }
-        
-        entity.setStartTime(dto.getStartTime());
-        entity.setEndTime(dto.getEndTime());
+
+        // 处理时间字段（LocalDate -> LocalDateTime）
+        if (dto.getStartTime() != null) {
+            entity.setStartTime(dto.getStartTime().atStartOfDay());
+        }
+        if (dto.getEndTime() != null) {
+            entity.setEndTime(dto.getEndTime().atStartOfDay());
+        }
         entity.setStatus(dto.getStatus());
         entity.setRemarks(dto.getRemarks());
         

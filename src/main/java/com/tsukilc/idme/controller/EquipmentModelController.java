@@ -44,9 +44,9 @@ public class EquipmentModelController {
      * 创建设备机型
      */
     @PostMapping
-    public ApiResponse<String> create(@Validated @RequestBody EquipmentModelCreateDTO dto) {
-        String id = equipmentModelService.create(dto);
-        return ApiResponse.success(id);
+    public ApiResponse<EquipmentModelVO> create(@Validated @RequestBody EquipmentModelCreateDTO dto) {
+        EquipmentModelVO vo = equipmentModelService.create(dto);
+        return ApiResponse.success(vo);
     }
 
     /**

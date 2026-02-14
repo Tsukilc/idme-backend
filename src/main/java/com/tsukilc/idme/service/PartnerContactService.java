@@ -1,5 +1,6 @@
 package com.tsukilc.idme.service;
 
+import com.tsukilc.idme.common.PageResult;
 import com.tsukilc.idme.dao.PartnerContactDao;
 import com.tsukilc.idme.dto.PartnerContactCreateDTO;
 import com.tsukilc.idme.entity.ObjectReference;
@@ -95,14 +96,20 @@ public class PartnerContactService {
     /**
      * 分页查询联系人列表
      */
-    public List<PartnerContactVO> list(int pageNum, int pageSize) {
+    public PageResult<PartnerContactVO> list(int pageNum, int pageSize) {
         log.info("分页查询联系人列表，pageNum: {}, pageSize: {}", pageNum, pageSize);
 
         List<PartnerContact> entities = partnerContactDao.findAll(pageNum, pageSize);
-
-        return entities.stream()
+        List<PartnerContactVO> vos = entities.stream()
             .map(this::convertToVO)
             .collect(Collectors.toList());
+
+        PageResult<PartnerContactVO> result = new PageResult<>();
+        result.setTotal(vos.size());
+        result.setPageNum(pageNum);
+        result.setPageSize(pageSize);
+        result.setRecords(vos);
+        return result;
     }
 
     /**

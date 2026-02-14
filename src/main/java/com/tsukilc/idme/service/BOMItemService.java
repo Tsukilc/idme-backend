@@ -6,15 +6,13 @@ import com.tsukilc.idme.dto.BOMItemBatchCreateDTO;
 import com.tsukilc.idme.dto.BOMItemCreateDTO;
 import com.tsukilc.idme.entity.BOMItem;
 import com.tsukilc.idme.entity.ObjectReference;
+import com.tsukilc.idme.exception.IdmeException;
 import com.tsukilc.idme.vo.BOMItemVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -27,31 +25,156 @@ public class BOMItemService {
 
     private final BOMItemDao bomItemDao;
 
+    // BOM图缓存：parentPartId -> List<childPartId>
+    private Map<String, List<String>> bomGraph = new HashMap<>();
+    private volatile boolean cacheInitialized = false;
+
+    // 树查询最大深度限制（防止死循环）
+    private static final int MAX_TREE_DEPTH = 100;
+
     public BOMItemService(BOMItemDao bomItemDao) {
         this.bomItemDao = bomItemDao;
     }
 
     /**
-     * 创建BOM项
+     * 初始化/刷新BOM图缓存
+     * 用于循环检测和性能优化
      */
-    public String create(BOMItemCreateDTO dto) {
-        BOMItem entity = convertToEntity(dto);
-        BOMItem created = bomItemDao.create(entity);
-        return created.getId();
+    private synchronized void refreshCache() {
+        log.info("刷新BOM图缓存...");
+        Map<String, List<String>> newGraph = new HashMap<>();
+
+        List<BOMItem> allItems = bomItemDao.findAll(1, 10000);
+        for (BOMItem item : allItems) {
+            // 提取 parentPartId
+            String parentId = null;
+            if (item.getTarget() != null) {
+                parentId = item.getTarget().getId();
+            } else if (item.getParentPart() != null) {
+                parentId = item.getParentPart().getId();
+            }
+
+            // 提取 childPartId
+            String childId = null;
+            if (item.getSource() != null) {
+                childId = item.getSource().getId();
+            } else if (item.getChildPart() != null) {
+                childId = item.getChildPart().getId();
+            }
+
+            if (parentId != null && childId != null) {
+                newGraph.computeIfAbsent(parentId, k -> new ArrayList<>()).add(childId);
+            }
+        }
+
+        this.bomGraph = newGraph;
+        this.cacheInitialized = true;
+        log.info("BOM图缓存刷新完成，共 {} 个父项，{} 条边", newGraph.size(),
+                newGraph.values().stream().mapToInt(List::size).sum());
     }
 
     /**
-     * 批量创建BOM项（竞赛要求）
+     * 创建BOM项（带循环检测）
+     */
+    public BOMItemVO create(BOMItemCreateDTO dto) {
+        // 确保缓存已初始化
+        if (!cacheInitialized) {
+            refreshCache();
+        }
+
+        // 循环检测：检测添加边(parent -> child)是否会形成环
+        String parentPartId = dto.getParentPart();
+        String childPartId = dto.getChildPart();
+
+        if (wouldCreateCycle(parentPartId, childPartId)) {
+            throw new IdmeException("不允许创建循环引用：将" + childPartId +
+                    "添加为" + parentPartId + "的子件会形成环");
+        }
+
+        BOMItem entity = convertToEntity(dto);
+        BOMItem created = bomItemDao.create(entity);
+
+        // 创建后刷新缓存
+        refreshCache();
+
+        return convertToVO(created);
+    }
+
+    /**
+     * 检测添加边(parent -> child)是否会形成环
+     * 使用DFS + visited集合
+     */
+    private boolean wouldCreateCycle(String parentPartId, String childPartId) {
+        // 模拟添加新边后的图
+        Map<String, List<String>> tempGraph = new HashMap<>();
+        for (Map.Entry<String, List<String>> entry : bomGraph.entrySet()) {
+            tempGraph.put(entry.getKey(), new ArrayList<>(entry.getValue()));
+        }
+        tempGraph.computeIfAbsent(parentPartId, k -> new ArrayList<>()).add(childPartId);
+
+        // 从childPartId开始DFS，看能否回到parentPartId
+        Set<String> visited = new HashSet<>();
+        return dfsHasCycle(childPartId, parentPartId, tempGraph, visited);
+    }
+
+    /**
+     * DFS检测环路
+     */
+    private boolean dfsHasCycle(String current, String target,
+                                Map<String, List<String>> graph,
+                                Set<String> visited) {
+        if (current.equals(target)) {
+            return true;  // 找到环
+        }
+        if (visited.contains(current)) {
+            return false;
+        }
+        visited.add(current);
+
+        List<String> children = graph.get(current);
+        if (children != null) {
+            for (String child : children) {
+                if (dfsHasCycle(child, target, graph, visited)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 批量创建BOM项（竞赛要求，带循环检测）
      */
     public List<String> batchCreate(BOMItemBatchCreateDTO dto) {
         log.info("批量创建BOM项，数量: {}", dto.getItems().size());
-        List<String> ids = new ArrayList<>();
-        
-        for (BOMItemCreateDTO itemDto : dto.getItems()) {
-            String id = create(itemDto);
-            ids.add(id);
+
+        // 确保缓存已初始化
+        if (!cacheInitialized) {
+            refreshCache();
         }
-        
+
+        List<String> ids = new ArrayList<>();
+
+        for (BOMItemCreateDTO itemDto : dto.getItems()) {
+            // 循环检测
+            String parentPartId = itemDto.getParentPart();
+            String childPartId = itemDto.getChildPart();
+
+            if (wouldCreateCycle(parentPartId, childPartId)) {
+                throw new IdmeException("批量创建失败：BOM项[" + parentPartId + "->" + childPartId + "]会形成环");
+            }
+
+            BOMItem entity = convertToEntity(itemDto);
+            BOMItem created = bomItemDao.create(entity);
+            ids.add(created.getId());
+
+            // 立即更新缓存图（为下一个BOM项的循环检测做准备）
+            bomGraph.computeIfAbsent(parentPartId, k -> new ArrayList<>()).add(childPartId);
+        }
+
+        // 批量创建完成后，刷新缓存（确保缓存与数据库一致）
+        refreshCache();
+
         log.info("批量创建完成，成功创建 {} 个BOM项", ids.size());
         return ids;
     }
@@ -75,29 +198,58 @@ public class BOMItemService {
 
     /**
      * 根据父项物料ID查询BOM树（树形查询，竞赛要求）
+     * 包含循环引用防护和深度限制
      */
     public List<BOMItemVO> getTreeByParent(String parentPartId) {
         log.info("查询BOM树，父项物料ID: {}", parentPartId);
-        
+        Set<String> visited = new HashSet<>();
+        return getTreeByParent(parentPartId, visited, 0);
+    }
+
+    /**
+     * 递归查询BOM树（内部方法，带循环防护）
+     */
+    private List<BOMItemVO> getTreeByParent(String parentPartId, Set<String> visited, int depth) {
+        // 深度限制
+        if (depth >= MAX_TREE_DEPTH) {
+            log.warn("达到最大树深度 {}, 停止递归", MAX_TREE_DEPTH);
+            return Collections.emptyList();
+        }
+
+        // 循环检测
+        if (visited.contains(parentPartId)) {
+            log.warn("检测到循环引用: {}, 停止递归", parentPartId);
+            return Collections.emptyList();
+        }
+        visited.add(parentPartId);
+
         // 查询所有BOM项
         List<BOMItem> allItems = bomItemDao.findAll(1, 1000);
-        
+
         // 查询指定父项的直接子项
         List<BOMItem> directChildren = allItems.stream()
-                .filter(item -> item.getParentPart() != null && parentPartId.equals(item.getParentPart().getId()))
+                .filter(item -> {
+                    // 优先使用target字段（父件），fallback到parentPart
+                    ObjectReference parentRef = item.getTarget() != null ? item.getTarget() : item.getParentPart();
+                    return parentRef != null && parentPartId.equals(parentRef.getId());
+                })
                 .collect(Collectors.toList());
-        
+
         // 构建树形结构
         List<BOMItemVO> tree = new ArrayList<>();
         for (BOMItem child : directChildren) {
             BOMItemVO vo = convertToVO(child);
-            // 递归查询子项的子项
-            if (child.getChildPart() != null) {
-                vo.setChildren(getTreeByParent(child.getChildPart().getId()));
+            // 递归查询子项的子项（传递visited副本，避免兄弟节点互相影响）
+            ObjectReference childRef = child.getSource() != null ? child.getSource() : child.getChildPart();
+            if (childRef != null && childRef.getId() != null) {
+                vo.setChildren(getTreeByParent(
+                        childRef.getId(),
+                        new HashSet<>(visited),  // 传递副本
+                        depth + 1));
             }
             tree.add(vo);
         }
-        
+
         return tree;
     }
 
@@ -110,9 +262,19 @@ public class BOMItemService {
     }
 
     /**
-     * 更新BOM项（清空系统字段）
+     * 更新BOM项（清空系统字段，刷新缓存）
      */
     public void update(String id, BOMItemCreateDTO dto) {
+        // 循环检测（与创建时相同）
+        String parentPartId = dto.getParentPart();
+        String childPartId = dto.getChildPart();
+
+        // 更新前先检查是否会形成环
+        if (wouldCreateCycle(parentPartId, childPartId)) {
+            throw new IdmeException("不允许更新为循环引用：将" + childPartId +
+                    "添加为" + parentPartId + "的子件会形成环");
+        }
+
         BOMItem entity = convertToEntity(dto);
         entity.setId(id);
 
@@ -127,13 +289,19 @@ public class BOMItemService {
         entity.setRdmVersion(null);
 
         bomItemDao.update(entity);
+
+        // 更新后刷新缓存
+        refreshCache();
     }
 
     /**
-     * 删除BOM项
+     * 删除BOM项（刷新缓存）
      */
     public void delete(String id) {
         bomItemDao.delete(id);
+
+        // 删除后刷新缓存
+        refreshCache();
     }
 
     /**
@@ -191,8 +359,15 @@ public class BOMItemService {
         }
 
         entity.setFindNumber(dto.getFindNumber());
-        entity.setEffectiveFrom(dto.getEffectiveFrom());
-        entity.setEffectiveTo(dto.getEffectiveTo());
+
+        // effectiveFrom/To：LocalDate → LocalDateTime（类似productionDate处理）
+        if (dto.getEffectiveFrom() != null) {
+            entity.setEffectiveFrom(dto.getEffectiveFrom().atStartOfDay());
+        }
+        if (dto.getEffectiveTo() != null) {
+            entity.setEffectiveTo(dto.getEffectiveTo().atStartOfDay());
+        }
+
         entity.setRemarks(dto.getRemarks());
         return entity;
     }

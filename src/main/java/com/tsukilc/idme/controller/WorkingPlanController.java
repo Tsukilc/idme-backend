@@ -2,9 +2,12 @@ package com.tsukilc.idme.controller;
 
 import com.tsukilc.idme.common.ApiResponse;
 import com.tsukilc.idme.common.PageResult;
+import com.tsukilc.idme.dto.PlanProcedureItem;
 import com.tsukilc.idme.dto.WorkingPlanCreateDTO;
 import com.tsukilc.idme.service.WorkingPlanService;
 import com.tsukilc.idme.vo.WorkingPlanVO;
+
+import java.util.List;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -45,9 +48,9 @@ public class WorkingPlanController {
      * 创建工艺路线
      */
     @PostMapping
-    public ApiResponse<String> create(@Validated @RequestBody WorkingPlanCreateDTO dto) {
-        String id = workingPlanService.create(dto);
-        return ApiResponse.success(id);
+    public ApiResponse<WorkingPlanVO> create(@Validated @RequestBody WorkingPlanCreateDTO dto) {
+        WorkingPlanVO vo = workingPlanService.create(dto);
+        return ApiResponse.success(vo);
     }
 
     /**
@@ -75,5 +78,25 @@ public class WorkingPlanController {
     public ApiResponse<Void> delete(@PathVariable String id) {
         workingPlanService.delete(id);
         return ApiResponse.success(null);
+    }
+
+    /**
+     * 创建工艺新版本
+     * POST /api/working-plan/{id}/new-version
+     */
+    @PostMapping("/{id}/new-version")
+    public ApiResponse<WorkingPlanVO> createNewVersion(@PathVariable String id) {
+        WorkingPlanVO newVersion = workingPlanService.createNewVersion(id);
+        return ApiResponse.success(newVersion);
+    }
+
+    /**
+     * 查询工艺对应所有工序
+     * GET /api/working-plan/{id}/procedures
+     */
+    @GetMapping("/{id}/procedures")
+    public ApiResponse<List<PlanProcedureItem>> getProcedures(@PathVariable String id) {
+        List<PlanProcedureItem> procedures = workingPlanService.getProcedures(id);
+        return ApiResponse.success(procedures);
     }
 }

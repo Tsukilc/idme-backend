@@ -27,10 +27,10 @@ public class EquipmentModelService {
     /**
      * 创建设备机型
      */
-    public String create(EquipmentModelCreateDTO dto) {
+    public EquipmentModelVO create(EquipmentModelCreateDTO dto) {
         EquipmentModel entity = convertToEntity(dto);
         EquipmentModel created = equipmentModelDao.create(entity);
-        return created.getId();
+        return convertToVO(created);
     }
 
     /**

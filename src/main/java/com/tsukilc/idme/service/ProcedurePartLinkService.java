@@ -9,6 +9,7 @@ import com.tsukilc.idme.vo.ProcedurePartLinkVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -191,10 +192,7 @@ public class ProcedurePartLinkService {
         }
 
         vo.setRole(convertEnumField(entity.getRole()));
-
-        if (entity.getQuantity() != null) {
-            vo.setQuantity(entity.getQuantity().intValue());
-        }
+        vo.setQuantity(entity.getQuantity());
 
         if (entity.getUom() != null) {
             vo.setUom(entity.getUom().getId());

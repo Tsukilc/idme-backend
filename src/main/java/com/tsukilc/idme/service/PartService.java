@@ -172,6 +172,25 @@ public class PartService {
     }
 
     /**
+     * 物料库存统计
+     * 返回所有物料的库存数量（ID -> stockQty）
+     */
+    public Map<String, Integer> getStockStatistics() {
+        log.info("查询物料库存统计");
+        List<Part> entities = partDao.findLatest(1, 1000);  // 只查询最新版本
+        Map<String, Integer> stats = new HashMap<>();
+
+        for (Part part : entities) {
+            if (part.getStockQty() != null) {
+                stats.put(part.getId(), part.getStockQty());
+            }
+        }
+
+        log.info("库存统计完成，共 {} 个物料", stats.size());
+        return stats;
+    }
+
+    /**
      * Entity -> VO 转换（严格遵循openapi.yaml）
      */
     private PartVO convertToVO(Part entity) {

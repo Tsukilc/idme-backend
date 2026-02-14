@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 /**
  * 设备 Controller
  * 竞赛核心模块（10分）
@@ -45,9 +47,9 @@ public class EquipmentController {
      * 创建设备
      */
     @PostMapping
-    public ApiResponse<String> create(@Validated @RequestBody EquipmentCreateDTO dto) {
-        String id = equipmentService.create(dto);
-        return ApiResponse.success(id);
+    public ApiResponse<EquipmentVO> create(@Validated @RequestBody EquipmentCreateDTO dto) {
+        EquipmentVO vo = equipmentService.create(dto);
+        return ApiResponse.success(vo);
     }
 
     /**
@@ -74,6 +76,25 @@ public class EquipmentController {
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable String id) {
         equipmentService.delete(id);
+        return ApiResponse.success(null);
+    }
+
+    /**
+     * 获取设备技术参数
+     */
+    @GetMapping("/{id}/tech-params")
+    public ApiResponse<Object> getTechParams(@PathVariable String id) {
+        Object techParams = equipmentService.getTechParams(id);
+        return ApiResponse.success(techParams);
+    }
+
+    /**
+     * 更新设备技术参数
+     */
+    @PutMapping("/{id}/tech-params")
+    public ApiResponse<Void> updateTechParams(@PathVariable String id,
+                                              @RequestBody Map<String, Object> techParams) {
+        equipmentService.updateTechParams(id, techParams);
         return ApiResponse.success(null);
     }
 }

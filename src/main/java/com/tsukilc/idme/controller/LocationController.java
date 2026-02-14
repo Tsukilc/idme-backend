@@ -24,7 +24,20 @@ public class LocationController {
     
     @Autowired
     private LocationService locationService;
-    
+
+    /**
+     * 分页查询位置列表
+     * 对应：GET /api/location?pageNum=1&pageSize=20
+     */
+    @GetMapping
+    public ApiResponse<PageResult<LocationVO>> list(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        log.info("查询位置列表，pageNum: {}, pageSize: {}", pageNum, pageSize);
+        PageResult<LocationVO> result = locationService.list(pageNum, pageSize);
+        return ApiResponse.success(result);
+    }
+
     /**
      * 创建位置
      * 对应：POST /api/location

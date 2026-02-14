@@ -6,6 +6,7 @@ import com.tsukilc.idme.dto.PlanProcedureLinkCreateDTO;
 import com.tsukilc.idme.entity.ObjectReference;
 import com.tsukilc.idme.entity.PlanProcedureLink;
 import com.tsukilc.idme.exception.IdmeException;
+import com.tsukilc.idme.vo.PlanProcedureLinkVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +24,7 @@ public class PlanProcedureLinkService {
         this.dao = dao;
     }
 
-    public String create(PlanProcedureLinkCreateDTO dto) {
+    public PlanProcedureLinkVO create(PlanProcedureLinkCreateDTO dto) {
         PlanProcedureLink entity = new PlanProcedureLink();
 
         // 双重字段命名：必须同时设置source/target和plan/procedure
@@ -36,9 +37,40 @@ public class PlanProcedureLinkService {
         entity.setProcedure(procedureRef); // 业务别名
 
         entity.setSequenceNo(dto.getSequenceNo());
-        entity.setStandardDurationMin(dto.getStandardDurationMin());
+
+        // marked: standardDurationMin：SDK要求 {value: "数值"} 格式
+        if (dto.getStandardDurationMin() != null) {
+            Map<String, Object> durationMap = new HashMap<>();
+            durationMap.put("value", dto.getStandardDurationMin().toString());
+            entity.setStandardDurationMin(durationMap);
+        }
+
         entity.setRequirement(dto.getRequirement());
-        return dao.create(entity).getId();
+        PlanProcedureLink created = dao.create(entity);
+        return convertToVO(created);
+    }
+
+    private PlanProcedureLinkVO convertToVO(PlanProcedureLink entity) {
+        PlanProcedureLinkVO vo = new PlanProcedureLinkVO();
+        vo.setId(entity.getId());
+        if (entity.getSource() != null) {
+            vo.setPlan(entity.getSource().getId());
+        }
+        if (entity.getTarget() != null) {
+            vo.setProcedure(entity.getTarget().getId());
+        }
+        vo.setSequenceNo(entity.getSequenceNo());
+        vo.setRequirement(entity.getRequirement());
+
+        // 处理standardDurationMin的Map格式
+        if (entity.getStandardDurationMin() != null && entity.getStandardDurationMin() instanceof java.util.Map) {
+            Object valueObj = ((java.util.Map<?, ?>) entity.getStandardDurationMin()).get("value");
+            if (valueObj != null) {
+                vo.setStandardDurationMin(Double.parseDouble(valueObj.toString()));
+            }
+        }
+
+        return vo;
     }
 
     public List<PlanProcedureLink> getByPlan(String planId) {

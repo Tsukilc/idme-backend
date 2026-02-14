@@ -35,18 +35,10 @@ public class EmployeeService {
         
         // DTO 转 Entity
         Employee entity = convertToEntity(dto);
-        
-        // #region agent log
-        try{java.nio.file.Files.write(java.nio.file.Paths.get("/Users/zbj/IdeaProjects/idme/.cursor/debug.log"),("{\"id\":\"log_"+System.currentTimeMillis()+"_6\",\"timestamp\":"+System.currentTimeMillis()+",\"location\":\"EmployeeService.java:35\",\"message\":\"转换后的Entity\",\"data\":{\"employeeNo\":\""+entity.getEmployeeNo()+"\",\"employeeName\":\""+entity.getEmployeeName()+"\",\"status\":\""+entity.getStatus()+"\",\"deptIsNull\":"+(entity.getDept()==null)+"},\"hypothesisId\":\"C\"}"+System.lineSeparator()).getBytes(),java.nio.file.StandardOpenOption.CREATE,java.nio.file.StandardOpenOption.APPEND);}catch(Exception e){}
-        // #endregion
-        
+
         // 调用 DAO 创建
         Employee created = employeeDao.create(entity);
-        
-        // #region agent log
-        try{java.nio.file.Files.write(java.nio.file.Paths.get("/Users/zbj/IdeaProjects/idme/.cursor/debug.log"),("{\"id\":\"log_"+System.currentTimeMillis()+"_7\",\"timestamp\":"+System.currentTimeMillis()+",\"location\":\"EmployeeService.java:45\",\"message\":\"DAO创建后的结果\",\"data\":{\"createdIsNull\":"+(created==null)+",\"idIsNull\":"+(created!=null&&created.getId()==null)+",\"employeeNoIsNull\":"+(created!=null&&created.getEmployeeNo()==null)+"},\"hypothesisId\":\"A,B\"}"+System.lineSeparator()).getBytes(),java.nio.file.StandardOpenOption.CREATE,java.nio.file.StandardOpenOption.APPEND);}catch(Exception e){}
-        // #endregion
-        
+
         // Entity 转 VO 返回
         return convertToVO(created);
     }
@@ -105,11 +97,12 @@ public class EmployeeService {
     }
     
     /**
-     * 按部门查询员工
+     * 按部门查询员工（使用SDK find接口）
      */
     public List<EmployeeVO> findByDept(String deptId) {
         log.info("按部门查询员工，deptId: {}", deptId);
-        List<Employee> entities = employeeDao.findByDept(deptId, 1, 1000);
+        // 使用新的find接口（支持复杂条件过滤）
+        List<Employee> entities = employeeDao.findByDeptUsingFind(deptId, 1, 1000);
         return entities.stream()
             .map(this::convertToVO)
             .collect(Collectors.toList());
